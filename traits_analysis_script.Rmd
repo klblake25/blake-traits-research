@@ -1,0 +1,2314 @@
+---
+title: "Traits"
+output: html_document
+date: "2026-04-24"
+---
+
+```{r setup, include=FALSE}
+# renv::install("knitr@1.52", prompt=FALSE)
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r loading packages, include=FALSE, echo=FALSE}
+# 
+# renv::install("tidyverse@2.0.0")
+# renv::install("dplyr@1.2.0")
+# renv::install("car@3.1-5")
+# renv::install("ordinal@2025.12-29")
+# renv::install("sure@0.2.0")
+# renv::install("DHARMa@0.4.7")
+# renv::install("psych@2.6.5")
+# renv::install("ggplot2@4.0.2")
+# renv::install("MASS@7.3-65")
+# renv::install("effects@4.2-5")
+# renv::install("patchwork@1.3.2")
+
+
+library("tidyverse")
+library("dplyr")
+library("car")
+library("ordinal")
+library("sure")
+library("DHARMa")
+library("psych")
+library("ggplot2")
+library("MASS")
+library("effects")
+library("patchwork")
+
+```
+
+```{r read and reorder covariates}
+
+#read data
+traits_data <- read.csv("C:/Users/katie/OneDrive/Research/PhD/Videogames and conservation/Player profiling/Traits/traits_data.csv")
+traits_data <- traits_data %>% filter(education != "None specified")
+
+
+#convert to factors
+traits_data$gender <- factor(traits_data$gender, levels = c('Female', 'Male', 'Other'))
+traits_data$education <- factor(traits_data$education, levels = c('Secondary school', 'Further education', 'Undergraduate degree', 'Postgraduate degree'))
+traits_data$weekly_hours <- factor(traits_data$weekly_hours, levels = c('1-10', '11-20', '21-30', '31+'))
+traits_data$donation_habits <- traits_data$donation_habits <- factor(traits_data$donation_habits, levels = c('Never', 'Yearly', 'Once every 6 months', 'Once every 3 months', 'Monthly'))
+traits_data$media_habits <- factor(traits_data$media_habits, levels = c('Never', 'Yearly', 'Once every 6 months', 'Once every 3 months', 'Monthly', 'Weekly', 'Daily'))
+
+
+levels(traits_data$media_habits) <- list(
+  "Never" = "Never", "Yearly" = "Yearly", "Once every 6 months" = "Once every 6 months", "Once every 3 months" = "Once every 3 months", "Monthly" = "Monthly", "Up to weekly" = c("Weekly", "Daily"))
+
+levels(traits_data$donation_habits) <- list(
+  "Never" = "Never", "Yearly" = "Yearly", "Up to every 6 months" = c("Once every 6 months", "Once every 3 months"), "Monthly" = "Monthly")
+
+
+```
+
+
+```{r checking summary statistics, include=TRUE, echo=TRUE}
+
+#age stats
+traits_data %>% summarise(min_age = min(age),
+                          max_age = max(age), 
+                          mean_age = mean(age),
+                          sd_age = sd(age))
+
+#gender stats
+traits_data %>%
+   count(gender) %>% 
+   mutate(gender_prop = round((n / sum(n)) * 100, 2))
+
+#country stats
+traits_data %>%
+   count(country, sort = TRUE) %>% 
+   mutate(country_prop = round((n / sum(n)) * 100, 2))
+
+#education stats
+traits_data %>%
+   count(education) %>% 
+   mutate(education_prop = round((n / sum(n)) * 100, 2))
+
+#weekly_hours stats
+traits_data %>%
+   count(weekly_hours) %>% 
+   mutate(weekly_hours_prop = round((n / sum(n)) * 100, 2))
+
+#nr stats
+traits_data %>% summarise(min_nr = min(nr),
+                          max_nr = max(nr), 
+                          mean_nr = mean(nr),
+                          sd_nr = sd(nr))
+
+#donation_habits stats
+traits_data %>%
+   count(donation_habits) %>% 
+   mutate(donation_habits_prop = round((n / sum(n)) * 100, 2))
+
+#media_habits stats
+traits_data %>%
+   count(media_habits) %>% 
+   mutate(media_habits_prop = round((n / sum(n)) * 100, 2))
+
+
+#philanthropist_type stats
+traits_data %>% summarise(min_philanthropist_type = min(philanthropist_type),
+                          max_philanthropist_type = max(philanthropist_type), 
+                          mean_philanthropist_type = mean(philanthropist_type),
+                          sd_philanthropist_type = sd(philanthropist_type))
+
+#socializer_type stats
+traits_data %>% summarise(min_socializer_type = min(socializer_type),
+                          max_socializer_type = max(socializer_type), 
+                          mean_socializer_type = mean(socializer_type),
+                          sd_socializer_type = sd(socializer_type))
+
+#achiever_type stats
+traits_data %>% summarise(min_achiever_type = min(achiever_type),
+                          max_achiever_type = max(achiever_type), 
+                          mean_achiever_type = mean(achiever_type),
+                          sd_achiever_type = sd(achiever_type))
+
+#player_type stats
+traits_data %>% summarise(min_player_type = min(player_type),
+                          max_player_type = max(player_type), 
+                          mean_player_type = mean(player_type),
+                          sd_player_type = sd(player_type))
+
+#free-spirit_type stats
+traits_data %>% summarise(min_free_spirit_type = min(free_spirit_type),
+                          max_free_spirit_type = max(free_spirit_type), 
+                          mean_free_spirit_type = mean(free_spirit_type),
+                          sd_free_spirit_type = sd(free_spirit_type))
+
+#disruptor_type stats
+traits_data %>% summarise(min_disruptor_type = min(disruptor_type),
+                          max_disruptor_type = max(disruptor_type), 
+                          mean_disruptor_type = mean(disruptor_type),
+                          sd_disruptor_type = sd(disruptor_type))
+
+```
+
+
+```{r scaling continuous variables, include=TRUE, echo=TRUE}
+
+#scaling age
+traits_data <- traits_data %>% mutate(age.z=age)
+traits_data$age.z <- scale(traits_data$age.z)
+mean(traits_data$age.z)
+sd(traits_data$age.z)
+
+#scaling nr
+traits_data <- traits_data %>% mutate(nr.z=nr)
+traits_data$nr.z <- scale(traits_data$nr.z)
+mean(traits_data$nr.z)
+sd(traits_data$nr.z)
+
+#scaling hexad
+traits_data <- traits_data %>% mutate(philanthropist_type.z=philanthropist_type)
+traits_data$philanthropist_type.z <- scale(traits_data$philanthropist_type.z)
+mean(traits_data$philanthropist_type.z)
+sd(traits_data$philanthropist_type.z)
+
+traits_data <- traits_data %>% mutate(socializer_type.z=socializer_type)
+traits_data$socializer_type.z <- scale(traits_data$socializer_type.z)
+mean(traits_data$socializer_type.z)
+sd(traits_data$socializer_type.z)
+
+traits_data <- traits_data %>% mutate(achiever_type.z=achiever_type)
+traits_data$achiever_type.z <- scale(traits_data$achiever_type.z)
+mean(traits_data$achiever_type.z)
+sd(traits_data$achiever_type.z)
+
+traits_data <- traits_data %>% mutate(player_type.z=player_type)
+traits_data$player_type.z <- scale(traits_data$player_type.z)
+mean(traits_data$player_type.z)
+sd(traits_data$player_type.z)
+
+traits_data <- traits_data %>% mutate(free_spirit_type.z=free_spirit_type)
+traits_data$free_spirit_type.z <- scale(traits_data$free_spirit_type.z)
+mean(traits_data$free_spirit_type.z)
+sd(traits_data$free_spirit_type.z)
+
+traits_data <- traits_data %>% mutate(disruptor_type.z=disruptor_type)
+traits_data$disruptor_type.z <- scale(traits_data$disruptor_type.z)
+mean(traits_data$disruptor_type.z)
+sd(traits_data$disruptor_type.z)
+
+```
+
+
+```{r check collinearity, include=TRUE, echoe=TRUE}
+
+car::vif(glm(more_games_eco_issues ~ age + gender + education + weekly_hours + nr + donation_habits + media_habits + philanthropist_type.z + socializer_type.z + achiever_type.z + player_type.z + free_spirit_type.z + disruptor_type.z + openness_combined + awareness_combined + studios_combined, data = traits_data))
+
+```
+
+
+```{r openness to eco content, include=TRUE, echo=TRUE}
+
+#checking internal consistency
+openness <- psych::polychoric(traits_data[, c("more_games_eco_issues", "more_games_support_conservation", "like_games_eco_issues", "like_games_support_conservation")])
+openness_alpha <- psych::alpha(openness$rho)
+print(openness_alpha) #looks great
+
+
+#model
+openness_model <- glm(openness_combined ~ age.z + gender + education + weekly_hours + nr + donation_habits + media_habits + philanthropist_type.z + socializer_type.z + achiever_type.z + player_type.z + free_spirit_type.z + disruptor_type.z, data = traits_data)
+print(summary(openness_model), show.residuals = TRUE)
+confint(openness_model, method = "Wald")
+
+drop1(openness_model, test = "Chisq")
+
+sim_res_openness <- simulateResiduals(openness_model)
+plot(sim_res_openness)
+testDispersion(sim_res_openness)
+
+
+#I think more video games should address ecological issues 
+model_openness_1_stats <- traits_data %>%
+  count(more_games_eco_issues_chisq) %>% 
+  mutate(more_games_eco_issues_chisq_prop = round((n / sum(n)) * 100, 2))
+          model_openness_1_stats
+          observed_counts_chisq_openness_1 <- c(180, 233, 415)
+          chisq_openness_1 <- chisq.test(observed_counts_chisq_openness_1)
+          print(chisq_openness_1)
+
+
+#I think more video games should help players to support conservation efforts
+model_openness_2_stats <- traits_data %>%
+  count(more_games_support_conservation_chisq) %>% 
+  mutate(more_games_support_conservation_chisq_prop = round((n / sum(n)) * 100, 2))
+          model_openness_2_stats
+          observed_counts_chisq_openness_2 <- c(161, 214, 453)
+          chisq_openness_2 <- chisq.test(observed_counts_chisq_openness_2)
+          print(chisq_openness_2)
+
+
+#I like when video games address ecological issues
+model_openness_3_stats <- traits_data %>%
+  count(like_games_eco_issues_chisq) %>% 
+  mutate(like_games_eco_issues_chisq_prop = round((n / sum(n)) * 100, 2))
+          model_openness_3_stats
+          observed_counts_chisq_openness_3 <- c(127, 203, 498)
+          chisq_openness_3 <- chisq.test(observed_counts_chisq_openness_3)
+          print(chisq_openness_3)
+          
+
+#I like when video games help players to support conservation efforts
+model_openness_4_stats <- traits_data %>%
+  count(like_games_support_conservation_chisq) %>% 
+  mutate(like_games_support_conservation_chisq_prop = round((n / sum(n)) * 100, 2))
+          model_openness_4_stats
+          observed_counts_chisq_openness_4 <- c(79, 197, 552)
+          chisq_openness_4 <- chisq.test(observed_counts_chisq_openness_4)
+          print(chisq_openness_4)
+
+
+#plotting effects
+age_effect <- effect("age.z", openness_model)
+plot(age_effect, main = "Effect of age on openness to eco-content")
+            
+gender_effect <- effect("gender", openness_model)
+plot(gender_effect, main = "Effect of gender on openness to eco-content")
+
+media_effect <- effect("media_habits", openness_model)
+plot(media_effect, main = "Effect of media habits on openness to eco-content")
+
+philanthropist_effect <- effect("philanthropist_type.z", openness_model)
+plot(philanthropist_effect, main = "Effect of Philanthropist on openness to eco-content")
+
+socializer_effect <- effect("socializer_type.z", openness_model)
+plot(socializer_effect, main = "Effect of Socializer on openness to eco-content")
+
+nr_effect <- effect("nr", openness_model)
+plot(nr_effect, main = "Effect of nature relatedness on openness to eco-content")
+
+```
+
+
+```{r games raise awareness, include=TRUE, echo=TRUE}
+
+#checking internal consistency
+awareness <- psych::polychoric(traits_data[, c("help_understand_causes_eco_issues", "raise_awareness_eco_issues", "raise_awareness_conservation", "show_how_support_conservation")])
+awareness_alpha <- psych::alpha(awareness$rho)
+print(awareness_alpha) #looks great
+
+
+#model
+awareness_model <- glm(awareness_combined ~ age.z + gender + education + weekly_hours + nr + donation_habits + media_habits + philanthropist_type.z + socializer_type.z + achiever_type.z + player_type.z + free_spirit_type.z + disruptor_type.z, data = traits_data)
+print(summary(awareness_model), show.residuals = TRUE)
+confint(awareness_model, method = "Wald")
+
+drop1(awareness_model, test = "Chisq")
+
+sim_res_awareness <- simulateResiduals(awareness_model)
+plot(sim_res_awareness)
+testDispersion(sim_res_awareness)
+
+
+#Video games can help me to understand the causes of ecological issues
+model_awareness_1_stats <- traits_data %>%
+  count(help_understand_causes_eco_issues_chisq) %>% 
+  mutate(help_understand_causes_eco_issues_chisq_prop = round((n / sum(n)) * 100, 2))
+          model_awareness_1_stats
+          observed_counts_chisq_awareness_1 <- c(141, 119, 568)
+          chisq_awareness_1 <- chisq.test(observed_counts_chisq_awareness_1)
+          print(chisq_awareness_1)
+
+
+#Video games can raise my awareness of ecological issues
+model_awareness_2_stats <- traits_data %>%
+  count(raise_awareness_eco_issues_chisq) %>% 
+  mutate(raise_awareness_eco_issues_chisq_prop = round((n / sum(n)) * 100, 2))
+          model_awareness_2_stats
+          observed_counts_chisq_awareness_2 <- c(66, 88, 674)
+          chisq_awareness_2 <- chisq.test(observed_counts_chisq_awareness_2)
+          print(chisq_awareness_2)
+
+          
+#Video games can raise my awareness of conservation efforts
+model_awareness_3_stats <- traits_data %>%
+  count(raise_awareness_conservation_chisq) %>% 
+  mutate(raise_awareness_conservation_chisq_prop = round((n / sum(n)) * 100, 2))
+          model_awareness_3_stats
+          observed_counts_chisq_awareness_3 <- c(102, 93, 633)
+          chisq_awareness_3 <- chisq.test(observed_counts_chisq_awareness_3)
+          print(chisq_awareness_3)
+          
+     
+#Video games can show me how to support conservation efforts
+model_awareness_4_stats <- traits_data %>%
+  count(show_how_support_conservation_chisq) %>% 
+  mutate(show_how_support_conservation_chisq_prop = round((n / sum(n)) * 100, 2))
+          model_awareness_4_stats
+          observed_counts_chisq_awareness_4 <- c(95, 128, 605)
+          chisq_awareness_4 <- chisq.test(observed_counts_chisq_awareness_4)
+          print(chisq_awareness_4)
+          
+
+#plotting effects
+media_effect <- effect("media_habits", awareness_model)
+plot(media_effect, main = "Effect of media habits on raising awareness")
+
+philanthropist_effect <- effect("philanthropist_type.z", awareness_model)
+plot(philanthropist_effect, main = "Effect of Philanthropist on raising awareness")
+
+```
+
+
+```{r studio expectations, include=TRUE, echo=TRUE}
+
+#studios do enough stats
+traits_data %>%
+   count(studios_do_enough) %>% 
+   mutate(studios_do_enough_prop = round((n / sum(n)) * 100, 2))
+
+
+#checking internal consistency
+studios <- psych::polychoric(traits_data[, c("studios_provide_severity_info", "studios_provide_ways_support", "studios_have_responsibility", "studios_do_enough")])
+studios_alpha <- psych::alpha(studios$rho)
+print(studios_alpha) #drop "studios do enough"
+
+studios <- psych::polychoric(traits_data[, c("studios_provide_severity_info", "studios_provide_ways_support", "studios_have_responsibility")])
+studios_alpha <- psych::alpha(studios$rho)
+print(studios_alpha) #an acceptable result now
+
+
+#model (combined score only 3 highly correlated variables)
+studios_model <- glm(studios_combined ~ age.z + gender + education + weekly_hours + nr + donation_habits + media_habits + philanthropist_type.z + socializer_type.z + achiever_type.z + player_type.z + free_spirit_type.z + disruptor_type.z, data = traits_data)
+print(summary(studios_model), show.residuals = TRUE)
+confint(studios_model, method = "Wald")
+
+drop1(studios_model, test = "Chisq")
+
+sim_res_studios <- simulateResiduals(studios_model)
+plot(sim_res_studios)
+testDispersion(sim_res_studios)
+
+
+#When studios develop video games about ecological issues, they should provide information on the real-world severity of these issues
+model_studios_1_stats <- traits_data %>%
+  count(studios_provide_severity_info_chisq) %>% 
+  mutate(studios_provide_severity_info_chisq_prop = round((n / sum(n)) * 100, 2))
+          model_studios_1_stats
+          observed_counts_chisq_studios_1 <- c(88, 143, 597)
+          chisq_studios_1 <- chisq.test(observed_counts_chisq_studios_1)
+          print(chisq_studios_1)
+
+          
+#When studios develop video games about ecological issues, they should provide ways for players to support conservation efforts
+model_studios_2_stats <- traits_data %>%
+  count(studios_provide_ways_support_chisq) %>% 
+  mutate(studios_provide_ways_support_chisq_prop = round((n / sum(n)) * 100, 2))
+          model_studios_2_stats
+          observed_counts_chisq_studios_2 <- c(96, 172, 560)
+          chisq_studios_2 <- chisq.test(observed_counts_chisq_studios_2)
+          print(chisq_studios_2)
+
+
+#Studios that develop video games about ecological issues have a responsibility to also support conservation efforts
+model_studios_3_stats <- traits_data %>%
+  count(studios_have_responsibility_chisq) %>% 
+  mutate(studios_have_responsibility_chisq_prop = round((n / sum(n)) * 100, 2))
+          model_studios_3_stats
+          observed_counts_chisq_studios_3 <- c(188, 201, 439)
+          chisq_studios_3 <- chisq.test(observed_counts_chisq_studios_3)
+          print(chisq_studios_3)
+
+
+#Studios that develop video games about ecological issues currently do enough to support conservation efforts
+model_studios_4_stats <- traits_data %>%
+  count(studios_do_enough_chisq) %>% 
+  mutate(studios_do_enough_chisq_prop = round((n / sum(n)) * 100, 2))
+          model_studios_4_stats
+          observed_counts_chisq_studios_4 <- c(211, 428, 189)
+          chisq_studios_4 <- chisq.test(observed_counts_chisq_studios_4)
+          print(chisq_studios_4)
+
+
+#plotting effects          
+gender_effect <- effect("gender", studios_model)
+plot(gender_effect, main = "Effect of gender on studio responsibilities")
+          
+media_effect <- effect("media_habits", studios_model)
+plot(media_effect, main = "Effect of media habits on studio responsibilities")
+
+philanthropist_effect <- effect("philanthropist_type.z", studios_model)
+plot(philanthropist_effect, main = "Effect of Philanthropist on studio responsibilities")
+
+nr_effect <- effect("nr", studios_model)
+plot(nr_effect, main = "Effect of nature relatedness on studio responsibilities")
+
+```
+
+
+```{r I would be willing to purchase in-game goods, if the profit goes to conservation efforts, include=TRUE, echo=TRUE}
+
+#summary stats
+traits_data %>%
+   count(purchase_ingame_goods) %>% 
+   mutate(purchase_ingame_goods_prop = round((n / sum(n)) * 100, 2))
+
+
+#chisq
+model_nudges_goods_stats <- traits_data %>%
+  count(purchase_ingame_goods_chisq) %>% 
+  mutate(purchase_ingame_goods_chisq_prop = round((n / sum(n)) * 100, 2))
+          model_nudges_goods_stats
+          observed_counts_chisq_goods <- c(219, 149, 460)
+          chisq_goods <- chisq.test(observed_counts_chisq_goods)
+          print(chisq_goods)
+
+
+#convert to factors
+traits_data$purchase_ingame_goods <- factor(traits_data$purchase_ingame_goods, ordered = TRUE,  levels=c('1', '2', '3', '4', '5'))
+traits_data$purchase_ingame_goods_chisq <- factor(traits_data$purchase_ingame_goods_chisq, ordered = TRUE,  levels=c('1', '2', '3'))
+
+
+#run clm
+model_nudges_goods <- clm(purchase_ingame_goods ~ age.z + gender + education + weekly_hours + nr + donation_habits + media_habits + philanthropist_type.z + socializer_type.z + achiever_type.z + player_type.z + free_spirit_type.z + disruptor_type.z + openness_combined + awareness_combined + studios_combined, data = traits_data)
+print(summary(model_nudges_goods))
+confint(model_nudges_goods, method = "Wald")
+drop1(model_nudges_goods, test = "Chisq")
+
+nominal_test(model_nudges_goods)
+scale_test(model_nudges_goods)
+
+
+#checks
+sres_model_nudges_goods_age.z <- resids(model_nudges_goods)
+p1 <- autoplot.resid(sres_model_nudges_goods_age.z, what = "covariate", x = as.numeric(traits_data$age.z))
+p2 <- autoplot.resid(sres_model_nudges_goods_age.z, what = "qq", x = traits_data$age.z, distribution = qnorm)
+
+sres_model_nudges_goods_nr <- resids(model_nudges_goods)
+p3 <- autoplot.resid(sres_model_nudges_goods_nr, what = "covariate", x = as.numeric(traits_data$nr))
+p4 <- autoplot.resid(sres_model_nudges_goods_nr, what = "qq", x = traits_data$nr, distribution = qnorm)
+
+sres_model_nudges_goods_philanthropist_type.z <- resids(model_nudges_goods)
+p5 <- autoplot.resid(sres_model_nudges_goods_philanthropist_type.z, what = "covariate", x = as.numeric(traits_data$philanthropist_type.z))
+p6 <- autoplot.resid(sres_model_nudges_goods_philanthropist_type.z, what = "qq", x = traits_data$philanthropist_type.z, distribution = qnorm)
+
+sres_model_nudges_goods_socializer_type.z <- resids(model_nudges_goods)
+p7 <- autoplot.resid(sres_model_nudges_goods_socializer_type.z, what = "covariate", x = as.numeric(traits_data$socializer_type.z))
+p8 <- autoplot.resid(sres_model_nudges_goods_socializer_type.z, what = "qq", x = traits_data$socializer_type.z, distribution = qnorm)
+
+sres_model_nudges_goods_achiever_type.z <- resids(model_nudges_goods)
+p9 <- autoplot.resid(sres_model_nudges_goods_achiever_type.z, what = "covariate", x = as.numeric(traits_data$achiever_type.z))
+p10 <- autoplot.resid(sres_model_nudges_goods_achiever_type.z, what = "qq", x = traits_data$achiever_type.z, distribution = qnorm)
+
+sres_model_nudges_goods_player_type.z <- resids(model_nudges_goods)
+p11 <- autoplot.resid(sres_model_nudges_goods_player_type.z, what = "covariate", x = as.numeric(traits_data$player_type.z))
+p12 <- autoplot.resid(sres_model_nudges_goods_player_type.z, what = "qq", x = traits_data$player_type.z, distribution = qnorm)
+
+sres_model_nudges_goods_free_spirit_type.z <- resids(model_nudges_goods)
+p13 <- autoplot.resid(sres_model_nudges_goods_free_spirit_type.z, what = "covariate", x = as.numeric(traits_data$free_spirit_type.z))
+p14 <- autoplot.resid(sres_model_nudges_goods_free_spirit_type.z, what = "qq", x = traits_data$free_spirit_type.z, distribution = qnorm)
+
+sres_model_nudges_goods_disruptor_type.z <- resids(model_nudges_goods)
+p15 <- autoplot.resid(sres_model_nudges_goods_disruptor_type.z, what = "covariate", x = as.numeric(traits_data$disruptor_type.z))
+p16 <- autoplot.resid(sres_model_nudges_goods_disruptor_type.z, what = "qq", x = traits_data$disruptor_type.z, distribution = qnorm)
+
+sres_model_nudges_goods_openness_combined <- resids(model_nudges_goods)
+p17 <- autoplot.resid(sres_model_nudges_goods_openness_combined, what = "covariate", x = as.numeric(traits_data$openness_combined))
+p18 <- autoplot.resid(sres_model_nudges_goods_openness_combined, what = "qq", x = traits_data$openness_combined, distribution = qnorm)
+
+sres_model_nudges_goods_awareness_combined <- resids(model_nudges_goods)
+p19 <- autoplot.resid(sres_model_nudges_goods_awareness_combined, what = "covariate", x = as.numeric(traits_data$awareness_combined))
+p20 <- autoplot.resid(sres_model_nudges_goods_awareness_combined, what = "qq", x = traits_data$awareness_combined, distribution = qnorm)
+
+sres_model_nudges_goods_studios_combined <- resids(model_nudges_goods)
+p21 <- autoplot.resid(sres_model_nudges_goods_studios_combined, what = "covariate", x = as.numeric(traits_data$studios_combined))
+p22 <- autoplot.resid(sres_model_nudges_goods_studios_combined, what = "qq", x = traits_data$studios_combined, distribution = qnorm)
+
+model_nudges_goods_checks_1 <- grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, ncol = 6)
+ggsave("model_nudges_goods_checks_1.png", model_nudges_goods_checks_1,
+       width = 40,
+       height = 25,
+       units = "in",
+       dpi = 300)
+
+
+sres_model_nudges_goods_gender <- resids(model_nudges_goods)
+p23 <- autoplot.resid(sres_model_nudges_goods_gender, what = "covariate", x = traits_data$gender)
+p24 <- autoplot.resid(sres_model_nudges_goods_gender, what = "qq", x = traits_data$gender, distribution = qnorm)
+
+sres_model_nudges_goods_education <- resids(model_nudges_goods)
+p25 <- autoplot.resid(sres_model_nudges_goods_education, what = "covariate", x = traits_data$education)
+p26 <- autoplot.resid(sres_model_nudges_goods_education, what = "qq", x = traits_data$education, distribution = qnorm)
+
+sres_model_nudges_goods_weekly_hours <- resids(model_nudges_goods)
+p27 <- autoplot.resid(sres_model_nudges_goods_weekly_hours, what = "covariate", x = traits_data$weekly_hours)
+p28 <- autoplot.resid(sres_model_nudges_goods_weekly_hours, what = "qq", x = traits_data$weekly_hours, distribution = qnorm)
+
+sres_model_nudges_goods_donation_habits <- resids(model_nudges_goods)
+p29 <- autoplot.resid(sres_model_nudges_goods_donation_habits, what = "covariate", x = traits_data$donation_habits)
+p30 <- autoplot.resid(sres_model_nudges_goods_donation_habits, what = "qq", x = traits_data$donation_habits, distribution = qnorm)
+
+sres_model_nudges_goods_media_habits <- resids(model_nudges_goods)
+p31 <- autoplot.resid(sres_model_nudges_goods_media_habits, what = "covariate", x = traits_data$media_habits)
+p32 <- autoplot.resid(sres_model_nudges_goods_media_habits, what = "qq", x = traits_data$media_habits, distribution = qnorm)
+
+model_nudges_goods_checks_2 <- grid.arrange(p23, p24, p25, p26, p27, p28, p29, p30, p31, p32, ncol = 4)
+ggsave("model_nudges_goods_checks_2.png", model_nudges_goods_checks_2,
+       width = 15,
+       height = 10,
+       units = "in",
+       dpi = 300)
+
+
+#plotting effects
+donation_effect <- effect("donation_habits", model_nudges_goods)
+plot(donation_effect, main ="Effect of donation habits on purchasing in-game goods")
+
+nr_effect <- effect("nr", model_nudges_goods)
+plot(nr_effect, main = "Effect of nature relatedness on purchasing in-game goods")
+
+openness_effect <- effect("openness_combined", model_nudges_goods)
+plot(openness_effect, main = "Effect of openness to eco-content on purchasing in-game goods")
+
+awareness_effect <- effect("awareness_combined", model_nudges_goods)
+plot(awareness_effect, main = "Effect of raising awareness on purchasing in-game goods")
+
+studios_effect <- effect("studios_combined", model_nudges_goods)
+plot(studios_effect, main = "Effect of studio responsibilities on purchasing in-game goods")
+
+```
+
+
+```{r I would be willing to play temporary live service events, where the game’s studio supports conservation efforts when players meet in-game goals, include=TRUE, echo=TRUE}
+
+#summary stats
+traits_data %>%
+   count(live_service_events) %>% 
+   mutate(live_service_events_prop = round((n / sum(n)) * 100, 2))
+
+
+#chisq
+model_nudges_liveservice_stats <- traits_data %>%
+  count(live_service_events_chisq) %>% 
+  mutate(live_service_events_chisq_prop = round((n / sum(n)) * 100, 2))
+          model_nudges_liveservice_stats
+          observed_counts_chisq_liveservice <- c(146, 130, 552)
+          chisq_liveservice <- chisq.test(observed_counts_chisq_liveservice)
+          print(chisq_liveservice)
+
+      
+#convert to factors
+traits_data$live_service_events <- factor(traits_data$live_service_events, ordered = TRUE,  levels=c('1', '2', '3', '4', '5'))
+traits_data$live_service_events_chisq <- factor(traits_data$live_service_events_chisq, ordered = TRUE,  levels=c('1', '2', '3'))          
+
+
+#model
+model_nudges_liveservice <- clm(live_service_events ~ age.z + gender + education + weekly_hours + nr + donation_habits + media_habits + philanthropist_type.z + socializer_type.z + achiever_type.z + player_type.z + free_spirit_type.z + disruptor_type.z + openness_combined + awareness_combined + studios_combined, data = traits_data)
+print(summary(model_nudges_liveservice))
+confint(model_nudges_liveservice, method = "Wald")
+drop1(model_nudges_liveservice, test = "Chisq")
+
+nominal_test(model_nudges_liveservice)
+scale_test(model_nudges_liveservice)
+
+
+#checks
+sres_model_nudges_liveservice_age.z <- resids(model_nudges_liveservice)
+p1 <- autoplot.resid(sres_model_nudges_liveservice_age.z, what = "covariate", x = as.numeric(traits_data$age.z))
+p2 <- autoplot.resid(sres_model_nudges_liveservice_age.z, what = "qq", x = traits_data$age.z, distribution = qnorm)
+
+sres_model_nudges_liveservice_nr <- resids(model_nudges_liveservice)
+p3 <- autoplot.resid(sres_model_nudges_liveservice_nr, what = "covariate", x = as.numeric(traits_data$nr))
+p4 <- autoplot.resid(sres_model_nudges_liveservice_nr, what = "qq", x = traits_data$nr, distribution = qnorm)
+
+sres_model_nudges_liveservice_philanthropist_type.z <- resids(model_nudges_liveservice)
+p5 <- autoplot.resid(sres_model_nudges_liveservice_philanthropist_type.z, what = "covariate", x = as.numeric(traits_data$philanthropist_type.z))
+p6 <- autoplot.resid(sres_model_nudges_liveservice_philanthropist_type.z, what = "qq", x = traits_data$philanthropist_type.z, distribution = qnorm)
+
+sres_model_nudges_liveservice_socializer_type.z <- resids(model_nudges_liveservice)
+p7 <- autoplot.resid(sres_model_nudges_liveservice_socializer_type.z, what = "covariate", x = as.numeric(traits_data$socializer_type.z))
+p8 <- autoplot.resid(sres_model_nudges_liveservice_socializer_type.z, what = "qq", x = traits_data$socializer_type.z, distribution = qnorm)
+
+sres_model_nudges_liveservice_achiever_type.z <- resids(model_nudges_liveservice)
+p9 <- autoplot.resid(sres_model_nudges_liveservice_achiever_type.z, what = "covariate", x = as.numeric(traits_data$achiever_type.z))
+p10 <- autoplot.resid(sres_model_nudges_liveservice_achiever_type.z, what = "qq", x = traits_data$achiever_type.z, distribution = qnorm)
+
+sres_model_nudges_liveservice_player_type.z <- resids(model_nudges_liveservice)
+p11 <- autoplot.resid(sres_model_nudges_liveservice_player_type.z, what = "covariate", x = as.numeric(traits_data$player_type.z))
+p12 <- autoplot.resid(sres_model_nudges_liveservice_player_type.z, what = "qq", x = traits_data$player_type.z, distribution = qnorm)
+
+sres_model_nudges_liveservice_free_spirit_type.z <- resids(model_nudges_liveservice)
+p13 <- autoplot.resid(sres_model_nudges_liveservice_free_spirit_type.z, what = "covariate", x = as.numeric(traits_data$free_spirit_type.z))
+p14 <- autoplot.resid(sres_model_nudges_liveservice_free_spirit_type.z, what = "qq", x = traits_data$free_spirit_type.z, distribution = qnorm)
+
+sres_model_nudges_liveservice_disruptor_type.z <- resids(model_nudges_liveservice)
+p15 <- autoplot.resid(sres_model_nudges_liveservice_disruptor_type.z, what = "covariate", x = as.numeric(traits_data$disruptor_type.z))
+p16 <- autoplot.resid(sres_model_nudges_liveservice_disruptor_type.z, what = "qq", x = traits_data$disruptor_type.z, distribution = qnorm)
+
+sres_model_nudges_liveservice_openness_combined <- resids(model_nudges_liveservice)
+p17 <- autoplot.resid(sres_model_nudges_liveservice_openness_combined, what = "covariate", x = as.numeric(traits_data$openness_combined))
+p18 <- autoplot.resid(sres_model_nudges_liveservice_openness_combined, what = "qq", x = traits_data$openness_combined, distribution = qnorm)
+
+sres_model_nudges_liveservice_awareness_combined <- resids(model_nudges_liveservice)
+p19 <- autoplot.resid(sres_model_nudges_liveservice_awareness_combined, what = "covariate", x = as.numeric(traits_data$awareness_combined))
+p20 <- autoplot.resid(sres_model_nudges_liveservice_awareness_combined, what = "qq", x = traits_data$awareness_combined, distribution = qnorm)
+
+sres_model_nudges_liveservice_studios_combined <- resids(model_nudges_liveservice)
+p21 <- autoplot.resid(sres_model_nudges_liveservice_studios_combined, what = "covariate", x = as.numeric(traits_data$studios_combined))
+p22 <- autoplot.resid(sres_model_nudges_liveservice_studios_combined, what = "qq", x = traits_data$studios_combined, distribution = qnorm)
+
+model_nudges_liveservice_checks_1 <- grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, ncol = 6)
+ggsave("model_nudges_liveservice_checks_1.png", model_nudges_liveservice_checks_1,
+       width = 40,
+       height = 25,
+       units = "in",
+       dpi = 300)
+
+
+sres_model_nudges_liveservice_gender <- resids(model_nudges_liveservice)
+p23 <- autoplot.resid(sres_model_nudges_liveservice_gender, what = "covariate", x = traits_data$gender)
+p24 <- autoplot.resid(sres_model_nudges_liveservice_gender, what = "qq", x = traits_data$gender, distribution = qnorm)
+
+sres_model_nudges_liveservice_education <- resids(model_nudges_liveservice)
+p25 <- autoplot.resid(sres_model_nudges_liveservice_education, what = "covariate", x = traits_data$education)
+p26 <- autoplot.resid(sres_model_nudges_liveservice_education, what = "qq", x = traits_data$education, distribution = qnorm)
+
+sres_model_nudges_liveservice_weekly_hours <- resids(model_nudges_liveservice)
+p27 <- autoplot.resid(sres_model_nudges_liveservice_weekly_hours, what = "covariate", x = traits_data$weekly_hours)
+p28 <- autoplot.resid(sres_model_nudges_liveservice_weekly_hours, what = "qq", x = traits_data$weekly_hours, distribution = qnorm)
+
+sres_model_nudges_liveservice_donation_habits <- resids(model_nudges_liveservice)
+p29 <- autoplot.resid(sres_model_nudges_liveservice_donation_habits, what = "covariate", x = traits_data$donation_habits)
+p30 <- autoplot.resid(sres_model_nudges_liveservice_donation_habits, what = "qq", x = traits_data$donation_habits, distribution = qnorm)
+
+sres_model_nudges_liveservice_media_habits <- resids(model_nudges_liveservice)
+p31 <- autoplot.resid(sres_model_nudges_liveservice_media_habits, what = "covariate", x = traits_data$media_habits)
+p32 <- autoplot.resid(sres_model_nudges_liveservice_media_habits, what = "qq", x = traits_data$media_habits, distribution = qnorm)
+
+model_nudges_liveservice_checks_2 <- grid.arrange(p23, p24, p25, p26, p27, p28, p29, p30, p31, p32, ncol = 4)
+ggsave("model_nudges_liveservice_checks_2.png", model_nudges_liveservice_checks_2,
+       width = 15,
+       height = 10,
+       units = "in",
+       dpi = 300)
+
+
+#plotting effects
+age_effect <- effect("age.z", model_nudges_liveservice)
+plot(age_effect, main = "Effect of age on playing live service events")
+
+gaming_effect <- effect("weekly_hours", model_nudges_liveservice)
+plot(gaming_effect, main = "Effect of weekly gaming hours on playing live service events")
+
+socializer_effect <- effect("socializer_type.z", model_nudges_liveservice)
+plot(socializer_effect, main = "Effect of Socializer on playing live service events")
+
+achiever_effect <- effect("achiever_type.z", model_nudges_liveservice)
+plot(achiever_effect, main = "Effect of Achiever on playing live service events")
+
+disruptor_effect <- effect("disruptor_type.z", model_nudges_liveservice)
+plot(disruptor_effect, main = "Effect of Disruptor on playing live service events")
+
+openness_effect <- effect("openness_combined", model_nudges_liveservice)
+plot(openness_effect, main = "Effect of openness to eco-content on playing live service events")
+
+awareness_effect <- effect("awareness_combined", model_nudges_liveservice)
+plot(awareness_effect, main = "Effect of raising awareness on playing live service events")
+
+studios_effect <- effect("studios_combined", model_nudges_liveservice)
+plot(studios_effect, main = "Effect of studio responsibilities on playing live service events")
+
+
+```
+
+
+```{r I would be willing to share in-game information about conservation efforts to my social media, include=TRUE, echo=TRUE}
+
+#summary stats
+traits_data %>%
+   count(share_ingame_info) %>% 
+   mutate(share_ingame_info_prop = round((n / sum(n)) * 100, 2))
+
+
+#chisq
+model_nudges_info_stats <- traits_data %>%
+  count(share_ingame_info_chisq) %>% 
+  mutate(share_ingame_info_chisq_prop = round((n / sum(n)) * 100, 2))
+          model_nudges_info_stats
+          observed_counts_chisq_info <- c(410, 187, 231)
+          chisq_info <- chisq.test(observed_counts_chisq_info)
+          print(chisq_info)
+
+          
+#convert to factors
+traits_data$share_ingame_info <- factor(traits_data$share_ingame_info, ordered = TRUE,  levels=c('1', '2', '3', '4', '5'))
+traits_data$share_ingame_info_chisq <- factor(traits_data$share_ingame_info_chisq, ordered = TRUE,  levels=c('1', '2', '3'))
+
+
+#model
+model_nudges_info <- clm(share_ingame_info ~ age.z + gender + education + weekly_hours + nr + donation_habits + media_habits + philanthropist_type.z + socializer_type.z + achiever_type.z + player_type.z + free_spirit_type.z + disruptor_type.z + openness_combined + awareness_combined + studios_combined, data = traits_data)
+print(summary(model_nudges_info))
+confint(model_nudges_info, method = "Wald")
+drop1(model_nudges_info, test = "Chisq")
+
+nominal_test(model_nudges_info)
+scale_test(model_nudges_info)
+
+
+#checks
+sres_model_nudges_info_age.z <- resids(model_nudges_info)
+p1 <- autoplot.resid(sres_model_nudges_info_age.z, what = "covariate", x = as.numeric(traits_data$age.z))
+p2 <- autoplot.resid(sres_model_nudges_info_age.z, what = "qq", x = traits_data$age.z, distribution = qnorm)
+
+sres_model_nudges_info_nr <- resids(model_nudges_info)
+p3 <- autoplot.resid(sres_model_nudges_info_nr, what = "covariate", x = as.numeric(traits_data$nr))
+p4 <- autoplot.resid(sres_model_nudges_info_nr, what = "qq", x = traits_data$nr, distribution = qnorm)
+
+sres_model_nudges_info_philanthropist_type.z <- resids(model_nudges_info)
+p5 <- autoplot.resid(sres_model_nudges_info_philanthropist_type.z, what = "covariate", x = as.numeric(traits_data$philanthropist_type.z))
+p6 <- autoplot.resid(sres_model_nudges_info_philanthropist_type.z, what = "qq", x = traits_data$philanthropist_type.z, distribution = qnorm)
+
+sres_model_nudges_info_socializer_type.z <- resids(model_nudges_info)
+p7 <- autoplot.resid(sres_model_nudges_info_socializer_type.z, what = "covariate", x = as.numeric(traits_data$socializer_type.z))
+p8 <- autoplot.resid(sres_model_nudges_info_socializer_type.z, what = "qq", x = traits_data$socializer_type.z, distribution = qnorm)
+
+sres_model_nudges_info_achiever_type.z <- resids(model_nudges_info)
+p9 <- autoplot.resid(sres_model_nudges_info_achiever_type.z, what = "covariate", x = as.numeric(traits_data$achiever_type.z))
+p10 <- autoplot.resid(sres_model_nudges_info_achiever_type.z, what = "qq", x = traits_data$achiever_type.z, distribution = qnorm)
+
+sres_model_nudges_info_player_type.z <- resids(model_nudges_info)
+p11 <- autoplot.resid(sres_model_nudges_info_player_type.z, what = "covariate", x = as.numeric(traits_data$player_type.z))
+p12 <- autoplot.resid(sres_model_nudges_info_player_type.z, what = "qq", x = traits_data$player_type.z, distribution = qnorm)
+
+sres_model_nudges_info_free_spirit_type.z <- resids(model_nudges_info)
+p13 <- autoplot.resid(sres_model_nudges_info_free_spirit_type.z, what = "covariate", x = as.numeric(traits_data$free_spirit_type.z))
+p14 <- autoplot.resid(sres_model_nudges_info_free_spirit_type.z, what = "qq", x = traits_data$free_spirit_type.z, distribution = qnorm)
+
+sres_model_nudges_info_disruptor_type.z <- resids(model_nudges_info)
+p15 <- autoplot.resid(sres_model_nudges_info_disruptor_type.z, what = "covariate", x = as.numeric(traits_data$disruptor_type.z))
+p16 <- autoplot.resid(sres_model_nudges_info_disruptor_type.z, what = "qq", x = traits_data$disruptor_type.z, distribution = qnorm)
+
+sres_model_nudges_info_openness_combined <- resids(model_nudges_info)
+p17 <- autoplot.resid(sres_model_nudges_info_openness_combined, what = "covariate", x = as.numeric(traits_data$openness_combined))
+p18 <- autoplot.resid(sres_model_nudges_info_openness_combined, what = "qq", x = traits_data$openness_combined, distribution = qnorm)
+
+sres_model_nudges_info_awareness_combined <- resids(model_nudges_info)
+p19 <- autoplot.resid(sres_model_nudges_info_awareness_combined, what = "covariate", x = as.numeric(traits_data$awareness_combined))
+p20 <- autoplot.resid(sres_model_nudges_info_awareness_combined, what = "qq", x = traits_data$awareness_combined, distribution = qnorm)
+
+sres_model_nudges_info_studios_combined <- resids(model_nudges_info)
+p21 <- autoplot.resid(sres_model_nudges_info_studios_combined, what = "covariate", x = as.numeric(traits_data$studios_combined))
+p22 <- autoplot.resid(sres_model_nudges_info_studios_combined, what = "qq", x = traits_data$studios_combined, distribution = qnorm)
+
+model_nudges_info_checks_1 <- grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, ncol = 6)
+ggsave("model_nudges_info_checks_1.png", model_nudges_info_checks_1,
+       width = 40,
+       height = 25,
+       units = "in",
+       dpi = 300)
+
+
+sres_model_nudges_info_gender <- resids(model_nudges_info)
+p23 <- autoplot.resid(sres_model_nudges_info_gender, what = "covariate", x = traits_data$gender)
+p24 <- autoplot.resid(sres_model_nudges_info_gender, what = "qq", x = traits_data$gender, distribution = qnorm)
+
+sres_model_nudges_info_education <- resids(model_nudges_info)
+p25 <- autoplot.resid(sres_model_nudges_info_education, what = "covariate", x = traits_data$education)
+p26 <- autoplot.resid(sres_model_nudges_info_education, what = "qq", x = traits_data$education, distribution = qnorm)
+
+sres_model_nudges_info_weekly_hours <- resids(model_nudges_info)
+p27 <- autoplot.resid(sres_model_nudges_info_weekly_hours, what = "covariate", x = traits_data$weekly_hours)
+p28 <- autoplot.resid(sres_model_nudges_info_weekly_hours, what = "qq", x = traits_data$weekly_hours, distribution = qnorm)
+
+sres_model_nudges_info_donation_habits <- resids(model_nudges_info)
+p29 <- autoplot.resid(sres_model_nudges_info_donation_habits, what = "covariate", x = traits_data$donation_habits)
+p30 <- autoplot.resid(sres_model_nudges_info_donation_habits, what = "qq", x = traits_data$donation_habits, distribution = qnorm)
+
+sres_model_nudges_info_media_habits <- resids(model_nudges_info)
+p31 <- autoplot.resid(sres_model_nudges_info_media_habits, what = "covariate", x = traits_data$media_habits)
+p32 <- autoplot.resid(sres_model_nudges_info_media_habits, what = "qq", x = traits_data$media_habits, distribution = qnorm)
+
+model_nudges_info_checks_2 <- grid.arrange(p23, p24, p25, p26, p27, p28, p29, p30, p31, p32, ncol = 4)
+ggsave("model_nudges_info_checks_2.png", model_nudges_info_checks_2,
+       width = 15,
+       height = 10,
+       units = "in",
+       dpi = 300)
+
+
+#plotting effects
+age_effect <- effect("age.z", model_nudges_info)
+plot(age_effect, main = "Effect of age on sharing in-game info")
+
+gaming_effect <- effect("weekly_hours", model_nudges_info)
+plot(gaming_effect, main = "Effect of weekly gaming hours on sharing in-game info")
+
+socializer_effect <- effect("socializer_type.z", model_nudges_info)
+plot(socializer_effect, main = "Effect of Socializer on sharing in-game info")
+
+free_spirit_effect <- effect("free_spirit_type.z", model_nudges_info)
+plot(free_spirit_effect, main = "Effect of Free-Spirit on sharing in-game info")
+
+donations_effect <- effect("donation_habits", model_nudges_info)
+plot(donations_effect, main = "Effect of donation habits on sharing in-game info")
+
+openness_effect <- effect("openness_combined", model_nudges_info)
+plot(openness_effect, main = "Effect of openness to eco-content on sharing in-game info")
+
+studios_effect <- effect("studios_combined", model_nudges_info)
+plot(studios_effect, main = "Effect of studio responsibilities on sharing in-game info")
+
+```
+
+
+```{r I am willing to attend in-game marches in support of conservation efforts, include=TRUE, echo=TRUE}
+
+#summary stats
+traits_data %>%
+   count(attend_ingame_marches) %>% 
+   mutate(attend_ingame_marches_prop = round((n / sum(n)) * 100, 2))
+
+
+#chisq
+model_nudges_marches_stats <- traits_data %>%
+  count(attend_ingame_marches_chisq) %>% 
+  mutate(attend_ingame_marches_chisq_prop = round((n / sum(n)) * 100, 2))
+          model_nudges_marches_stats
+          observed_counts_chisq_marches <- c(370, 174, 284)
+          chisq_marches <- chisq.test(observed_counts_chisq_marches)
+          print(chisq_marches)
+
+
+#convert to factors
+traits_data$attend_ingame_marches <- factor(traits_data$attend_ingame_marches, ordered = TRUE,  levels=c('1', '2', '3', '4', '5'))
+traits_data$attend_ingame_marches_chisq <- factor(traits_data$attend_ingame_marches_chisq, ordered = TRUE,  levels=c('1', '2', '3'))
+
+
+#run clm
+model_nudges_marches <- clm(attend_ingame_marches ~ age.z + gender + education + weekly_hours + nr + donation_habits + media_habits + philanthropist_type.z + socializer_type.z + achiever_type.z + player_type.z + free_spirit_type.z + disruptor_type.z + openness_combined + awareness_combined + studios_combined, data = traits_data)
+print(summary(model_nudges_marches))
+confint(model_nudges_marches, method = "Wald")
+drop1(model_nudges_marches, test = "Chisq")
+
+nominal_test(model_nudges_marches)
+scale_test(model_nudges_marches)
+
+
+#checks
+sres_model_nudges_marches_age.z <- resids(model_nudges_marches)
+p1 <- autoplot.resid(sres_model_nudges_marches_age.z, what = "covariate", x = as.numeric(traits_data$age.z))
+p2 <- autoplot.resid(sres_model_nudges_marches_age.z, what = "qq", x = traits_data$age.z, distribution = qnorm)
+
+sres_model_nudges_marches_nr <- resids(model_nudges_marches)
+p3 <- autoplot.resid(sres_model_nudges_marches_nr, what = "covariate", x = as.numeric(traits_data$nr))
+p4 <- autoplot.resid(sres_model_nudges_marches_nr, what = "qq", x = traits_data$nr, distribution = qnorm)
+
+sres_model_nudges_marches_philanthropist_type.z <- resids(model_nudges_marches)
+p5 <- autoplot.resid(sres_model_nudges_marches_philanthropist_type.z, what = "covariate", x = as.numeric(traits_data$philanthropist_type.z))
+p6 <- autoplot.resid(sres_model_nudges_marches_philanthropist_type.z, what = "qq", x = traits_data$philanthropist_type.z, distribution = qnorm)
+
+sres_model_nudges_marches_socializer_type.z <- resids(model_nudges_marches)
+p7 <- autoplot.resid(sres_model_nudges_marches_socializer_type.z, what = "covariate", x = as.numeric(traits_data$socializer_type.z))
+p8 <- autoplot.resid(sres_model_nudges_marches_socializer_type.z, what = "qq", x = traits_data$socializer_type.z, distribution = qnorm)
+
+sres_model_nudges_marches_achiever_type.z <- resids(model_nudges_marches)
+p9 <- autoplot.resid(sres_model_nudges_marches_achiever_type.z, what = "covariate", x = as.numeric(traits_data$achiever_type.z))
+p10 <- autoplot.resid(sres_model_nudges_marches_achiever_type.z, what = "qq", x = traits_data$achiever_type.z, distribution = qnorm)
+
+sres_model_nudges_marches_player_type.z <- resids(model_nudges_marches)
+p11 <- autoplot.resid(sres_model_nudges_marches_player_type.z, what = "covariate", x = as.numeric(traits_data$player_type.z))
+p12 <- autoplot.resid(sres_model_nudges_marches_player_type.z, what = "qq", x = traits_data$player_type.z, distribution = qnorm)
+
+sres_model_nudges_marches_free_spirit_type.z <- resids(model_nudges_marches)
+p13 <- autoplot.resid(sres_model_nudges_marches_free_spirit_type.z, what = "covariate", x = as.numeric(traits_data$free_spirit_type.z))
+p14 <- autoplot.resid(sres_model_nudges_marches_free_spirit_type.z, what = "qq", x = traits_data$free_spirit_type.z, distribution = qnorm)
+
+sres_model_nudges_marches_disruptor_type.z <- resids(model_nudges_marches)
+p15 <- autoplot.resid(sres_model_nudges_marches_disruptor_type.z, what = "covariate", x = as.numeric(traits_data$disruptor_type.z))
+p16 <- autoplot.resid(sres_model_nudges_marches_disruptor_type.z, what = "qq", x = traits_data$disruptor_type.z, distribution = qnorm)
+
+sres_model_nudges_marches_openness_combined <- resids(model_nudges_marches)
+p17 <- autoplot.resid(sres_model_nudges_marches_openness_combined, what = "covariate", x = as.numeric(traits_data$openness_combined))
+p18 <- autoplot.resid(sres_model_nudges_marches_openness_combined, what = "qq", x = traits_data$openness_combined, distribution = qnorm)
+
+sres_model_nudges_marches_awareness_combined <- resids(model_nudges_marches)
+p19 <- autoplot.resid(sres_model_nudges_marches_awareness_combined, what = "covariate", x = as.numeric(traits_data$awareness_combined))
+p20 <- autoplot.resid(sres_model_nudges_marches_awareness_combined, what = "qq", x = traits_data$awareness_combined, distribution = qnorm)
+
+sres_model_nudges_marches_studios_combined <- resids(model_nudges_marches)
+p21 <- autoplot.resid(sres_model_nudges_marches_studios_combined, what = "covariate", x = as.numeric(traits_data$studios_combined))
+p22 <- autoplot.resid(sres_model_nudges_marches_studios_combined, what = "qq", x = traits_data$studios_combined, distribution = qnorm)
+
+model_nudges_marches_checks_1 <- grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, ncol = 6)
+ggsave("model_nudges_marches_checks_1.png", model_nudges_marches_checks_1,
+       width = 40,
+       height = 25,
+       units = "in",
+       dpi = 300)
+
+
+sres_model_nudges_marches_gender <- resids(model_nudges_marches)
+p23 <- autoplot.resid(sres_model_nudges_marches_gender, what = "covariate", x = traits_data$gender)
+p24 <- autoplot.resid(sres_model_nudges_marches_gender, what = "qq", x = traits_data$gender, distribution = qnorm)
+
+sres_model_nudges_marches_education <- resids(model_nudges_marches)
+p25 <- autoplot.resid(sres_model_nudges_marches_education, what = "covariate", x = traits_data$education)
+p26 <- autoplot.resid(sres_model_nudges_marches_education, what = "qq", x = traits_data$education, distribution = qnorm)
+
+sres_model_nudges_marches_weekly_hours <- resids(model_nudges_marches)
+p21 <- autoplot.resid(sres_model_nudges_marches_weekly_hours, what = "covariate", x = traits_data$weekly_hours)
+p28 <- autoplot.resid(sres_model_nudges_marches_weekly_hours, what = "qq", x = traits_data$weekly_hours, distribution = qnorm)
+
+sres_model_nudges_marches_donation_habits <- resids(model_nudges_marches)
+p29 <- autoplot.resid(sres_model_nudges_marches_donation_habits, what = "covariate", x = traits_data$donation_habits)
+p30 <- autoplot.resid(sres_model_nudges_marches_donation_habits, what = "qq", x = traits_data$donation_habits, distribution = qnorm)
+
+sres_model_nudges_marches_media_habits <- resids(model_nudges_marches)
+p31 <- autoplot.resid(sres_model_nudges_marches_media_habits, what = "covariate", x = traits_data$media_habits)
+p32 <- autoplot.resid(sres_model_nudges_marches_media_habits, what = "qq", x = traits_data$media_habits, distribution = qnorm)
+
+model_nudges_marches_checks_2 <- grid.arrange(p23, p24, p25, p26, p27, p28, p29, p30, p31, p32, ncol = 4)
+ggsave("model_nudges_marches_checks_2.png", model_nudges_marches_checks_2,
+       width = 15,
+       height = 10,
+       units = "in",
+       dpi = 300)
+
+
+#plotting effects
+gaming_effect <- effect("weekly_hours", model_nudges_marches)
+plot(gaming_effect, main = "Effect of weekly gaming hours on attending in-game marches")
+
+socializer_effect <- effect("socializer_type.z", model_nudges_marches)
+plot(socializer_effect, main = "Effect of Socializer on attending in-game marches")
+
+nr_effect <- effect("nr", model_nudges_marches)
+plot(nr_effect, main = "Effect of nature relatedness on attending in-game marches")
+
+openness_effect <- effect("openness_combined", model_nudges_marches)
+plot(openness_effect, main = "Effect of openness to eco-content on attending in-game marches")
+
+awareness_effect <- effect("awareness_combined", model_nudges_marches)
+plot(awareness_effect, main = "Effect of raising awareness on attending in-game marches")
+
+studios_effect <- effect("studios_combined", model_nudges_marches)
+plot(studios_effect, main = "Effect of studio responsibilities on attending in-game marches")
+
+```
+
+
+```{r I am willing to dress my avatar/profile in a way that shows my support for conservation efforts, include=TRUE, echo=TRUE}
+
+#summary stats
+traits_data %>%
+   count(dress_avatar_profile) %>% 
+   mutate(dress_avatar_profile_prop = round((n / sum(n)) * 100, 2))
+
+
+#chisq
+model_nudges_dress_stats <- traits_data %>%
+  count(dress_avatar_profile_chisq) %>% 
+  mutate(dress_avatar_profile_chisq_prop = round((n / sum(n)) * 100, 2))
+          model_nudges_dress_stats
+          observed_counts_chisq_dress <- c(199, 132, 497)
+          chisq_dress <- chisq.test(observed_counts_chisq_dress)
+          print(chisq_dress)
+
+
+#convert to factors
+traits_data$dress_avatar_profile <- factor(traits_data$dress_avatar_profile, ordered = TRUE,  levels=c('1', '2', '3', '4', '5'))
+traits_data$dress_avatar_profile_chisq <- factor(traits_data$dress_avatar_profile_chisq, ordered = TRUE,  levels=c('1', '2', '3'))
+
+
+#run clm
+model_nudges_dress <- clm(dress_avatar_profile ~ age.z + gender + education + weekly_hours + nr + donation_habits + media_habits + philanthropist_type.z + socializer_type.z + achiever_type.z + player_type.z + free_spirit_type.z + disruptor_type.z + openness_combined + awareness_combined + studios_combined, data = traits_data)
+print(summary(model_nudges_dress))
+confint(model_nudges_dress, method = "Wald")
+drop1(model_nudges_dress, test = "Chisq")
+
+nominal_test(model_nudges_dress)
+scale_test(model_nudges_dress)
+
+
+#checks
+sres_model_nudges_dress_age.z <- resids(model_nudges_dress)
+p1 <- autoplot.resid(sres_model_nudges_dress_age.z, what = "covariate", x = as.numeric(traits_data$age.z))
+p2 <- autoplot.resid(sres_model_nudges_dress_age.z, what = "qq", x = traits_data$age.z, distribution = qnorm)
+
+sres_model_nudges_dress_nr <- resids(model_nudges_dress)
+p3 <- autoplot.resid(sres_model_nudges_dress_nr, what = "covariate", x = as.numeric(traits_data$nr))
+p4 <- autoplot.resid(sres_model_nudges_dress_nr, what = "qq", x = traits_data$nr, distribution = qnorm)
+
+sres_model_nudges_dress_philanthropist_type.z <- resids(model_nudges_dress)
+p5 <- autoplot.resid(sres_model_nudges_dress_philanthropist_type.z, what = "covariate", x = as.numeric(traits_data$philanthropist_type.z))
+p6 <- autoplot.resid(sres_model_nudges_dress_philanthropist_type.z, what = "qq", x = traits_data$philanthropist_type.z, distribution = qnorm)
+
+sres_model_nudges_dress_socializer_type.z <- resids(model_nudges_dress)
+p7 <- autoplot.resid(sres_model_nudges_dress_socializer_type.z, what = "covariate", x = as.numeric(traits_data$socializer_type.z))
+p8 <- autoplot.resid(sres_model_nudges_dress_socializer_type.z, what = "qq", x = traits_data$socializer_type.z, distribution = qnorm)
+
+sres_model_nudges_dress_achiever_type.z <- resids(model_nudges_dress)
+p9 <- autoplot.resid(sres_model_nudges_dress_achiever_type.z, what = "covariate", x = as.numeric(traits_data$achiever_type.z))
+p10 <- autoplot.resid(sres_model_nudges_dress_achiever_type.z, what = "qq", x = traits_data$achiever_type.z, distribution = qnorm)
+
+sres_model_nudges_dress_player_type.z <- resids(model_nudges_dress)
+p11 <- autoplot.resid(sres_model_nudges_dress_player_type.z, what = "covariate", x = as.numeric(traits_data$player_type.z))
+p12 <- autoplot.resid(sres_model_nudges_dress_player_type.z, what = "qq", x = traits_data$player_type.z, distribution = qnorm)
+
+sres_model_nudges_dress_free_spirit_type.z <- resids(model_nudges_dress)
+p13 <- autoplot.resid(sres_model_nudges_dress_free_spirit_type.z, what = "covariate", x = as.numeric(traits_data$free_spirit_type.z))
+p14 <- autoplot.resid(sres_model_nudges_dress_free_spirit_type.z, what = "qq", x = traits_data$free_spirit_type.z, distribution = qnorm)
+
+sres_model_nudges_dress_disruptor_type.z <- resids(model_nudges_dress)
+p15 <- autoplot.resid(sres_model_nudges_dress_disruptor_type.z, what = "covariate", x = as.numeric(traits_data$disruptor_type.z))
+p16 <- autoplot.resid(sres_model_nudges_dress_disruptor_type.z, what = "qq", x = traits_data$disruptor_type.z, distribution = qnorm)
+
+sres_model_nudges_dress_openness_combined <- resids(model_nudges_dress)
+p17 <- autoplot.resid(sres_model_nudges_dress_openness_combined, what = "covariate", x = as.numeric(traits_data$openness_combined))
+p18 <- autoplot.resid(sres_model_nudges_dress_openness_combined, what = "qq", x = traits_data$openness_combined, distribution = qnorm)
+
+sres_model_nudges_dress_awareness_combined <- resids(model_nudges_dress)
+p19 <- autoplot.resid(sres_model_nudges_dress_awareness_combined, what = "covariate", x = as.numeric(traits_data$awareness_combined))
+p20 <- autoplot.resid(sres_model_nudges_dress_awareness_combined, what = "qq", x = traits_data$awareness_combined, distribution = qnorm)
+
+sres_model_nudges_dress_studios_combined <- resids(model_nudges_dress)
+p21 <- autoplot.resid(sres_model_nudges_dress_studios_combined, what = "covariate", x = as.numeric(traits_data$studios_combined))
+p22 <- autoplot.resid(sres_model_nudges_dress_studios_combined, what = "qq", x = traits_data$studios_combined, distribution = qnorm)
+
+model_nudges_dress_checks_1 <- grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, ncol = 6)
+ggsave("model_nudges_marches_checks_1.png", model_nudges_marches_checks_1,
+       width = 40,
+       height = 25,
+       units = "in",
+       dpi = 300)
+
+
+sres_model_nudges_dress_gender <- resids(model_nudges_dress)
+p23 <- autoplot.resid(sres_model_nudges_dress_gender, what = "covariate", x = traits_data$gender)
+p24 <- autoplot.resid(sres_model_nudges_dress_gender, what = "qq", x = traits_data$gender, distribution = qnorm)
+
+sres_model_nudges_dress_education <- resids(model_nudges_dress)
+p25 <- autoplot.resid(sres_model_nudges_dress_education, what = "covariate", x = traits_data$education)
+p26 <- autoplot.resid(sres_model_nudges_dress_education, what = "qq", x = traits_data$education, distribution = qnorm)
+
+sres_model_nudges_dress_weekly_hours <- resids(model_nudges_dress)
+p27 <- autoplot.resid(sres_model_nudges_dress_weekly_hours, what = "covariate", x = traits_data$weekly_hours)
+p28 <- autoplot.resid(sres_model_nudges_dress_weekly_hours, what = "qq", x = traits_data$weekly_hours, distribution = qnorm)
+
+sres_model_nudges_dress_donation_habits <- resids(model_nudges_dress)
+p29 <- autoplot.resid(sres_model_nudges_dress_donation_habits, what = "covariate", x = traits_data$donation_habits)
+p30 <- autoplot.resid(sres_model_nudges_dress_donation_habits, what = "qq", x = traits_data$donation_habits, distribution = qnorm)
+
+sres_model_nudges_dress_media_habits <- resids(model_nudges_dress)
+p31 <- autoplot.resid(sres_model_nudges_dress_media_habits, what = "covariate", x = traits_data$media_habits)
+p32 <- autoplot.resid(sres_model_nudges_dress_media_habits, what = "qq", x = traits_data$media_habits, distribution = qnorm)
+
+model_nudges_dress_checks_2 <- grid.arrange(p23, p24, p25, p26, p27, p28, p29, p30, p31, p32, ncol = 4)
+ggsave("model_nudges_dress_checks_2.png", model_nudges_dress_checks_2,
+       width = 15,
+       height = 10,
+       units = "in",
+       dpi = 300)
+
+
+#plotting effects
+age_effect <- effect("age.z", model_nudges_dress)
+plot(age_effect, main = "Effect of age on dressing avatar or profile")
+
+```
+
+
+```{r I am willing to make donations to conservation efforts through video games, with nothing in return, include=TRUE, echo=TRUE}
+
+#summary stats
+traits_data %>%
+   count(donate_without_reward) %>% 
+   mutate(donate_without_reward_prop = round((n / sum(n)) * 100, 2))
+
+
+#chisq
+model_nudges_donate_stats <- traits_data %>%
+  count(donate_without_reward_chisq) %>% 
+  mutate(donate_without_reward_chisq_prop = round((n / sum(n)) * 100, 2))
+          model_nudges_donate_stats
+          observed_counts_chisq_donate <- c(279, 213, 336)
+          chisq_donate <- chisq.test(observed_counts_chisq_donate)
+          print(chisq_donate)
+
+
+#convert to factors
+traits_data$donate_without_reward <- factor(traits_data$donate_without_reward, ordered = TRUE,  levels=c('1', '2', '3', '4', '5'))
+traits_data$donate_without_reward_chisq <- factor(traits_data$donate_without_reward_chisq, ordered = TRUE,  levels=c('1', '2', '3'))
+
+
+#model
+model_nudges_donate <- clm(donate_without_reward ~ age.z + gender + education + weekly_hours + nr + donation_habits + media_habits + philanthropist_type.z + socializer_type.z + achiever_type.z + player_type.z + free_spirit_type.z + disruptor_type.z + openness_combined + awareness_combined + studios_combined, data = traits_data)
+print(summary(model_nudges_donate))
+confint(model_nudges_donate, method = "Wald")
+drop1(model_nudges_donate, test = "Chisq")
+
+nominal_test(model_nudges_donate)
+scale_test(model_nudges_donate)
+
+
+#checks
+sres_model_nudges_donate_age.z <- resids(model_nudges_donate)
+p1 <- autoplot.resid(sres_model_nudges_donate_age.z, what = "covariate", x = as.numeric(traits_data$age.z))
+p2 <- autoplot.resid(sres_model_nudges_donate_age.z, what = "qq", x = traits_data$age.z, distribution = qnorm)
+
+sres_model_nudges_donate_nr <- resids(model_nudges_donate)
+p3 <- autoplot.resid(sres_model_nudges_donate_nr, what = "covariate", x = as.numeric(traits_data$nr))
+p4 <- autoplot.resid(sres_model_nudges_donate_nr, what = "qq", x = traits_data$nr, distribution = qnorm)
+
+sres_model_nudges_donate_philanthropist_type.z <- resids(model_nudges_donate)
+p5 <- autoplot.resid(sres_model_nudges_donate_philanthropist_type.z, what = "covariate", x = as.numeric(traits_data$philanthropist_type.z))
+p6 <- autoplot.resid(sres_model_nudges_donate_philanthropist_type.z, what = "qq", x = traits_data$philanthropist_type.z, distribution = qnorm)
+
+sres_model_nudges_donate_socializer_type.z <- resids(model_nudges_donate)
+p7 <- autoplot.resid(sres_model_nudges_donate_socializer_type.z, what = "covariate", x = as.numeric(traits_data$socializer_type.z))
+p8 <- autoplot.resid(sres_model_nudges_donate_socializer_type.z, what = "qq", x = traits_data$socializer_type.z, distribution = qnorm)
+
+sres_model_nudges_donate_achiever_type.z <- resids(model_nudges_donate)
+p9 <- autoplot.resid(sres_model_nudges_donate_achiever_type.z, what = "covariate", x = as.numeric(traits_data$achiever_type.z))
+p10 <- autoplot.resid(sres_model_nudges_donate_achiever_type.z, what = "qq", x = traits_data$achiever_type.z, distribution = qnorm)
+
+sres_model_nudges_donate_player_type.z <- resids(model_nudges_donate)
+p11 <- autoplot.resid(sres_model_nudges_donate_player_type.z, what = "covariate", x = as.numeric(traits_data$player_type.z))
+p12 <- autoplot.resid(sres_model_nudges_donate_player_type.z, what = "qq", x = traits_data$player_type.z, distribution = qnorm)
+
+sres_model_nudges_donate_free_spirit_type.z <- resids(model_nudges_donate)
+p13 <- autoplot.resid(sres_model_nudges_donate_free_spirit_type.z, what = "covariate", x = as.numeric(traits_data$free_spirit_type.z))
+p14 <- autoplot.resid(sres_model_nudges_donate_free_spirit_type.z, what = "qq", x = traits_data$free_spirit_type.z, distribution = qnorm)
+
+sres_model_nudges_donate_disruptor_type.z <- resids(model_nudges_donate)
+p15 <- autoplot.resid(sres_model_nudges_donate_disruptor_type.z, what = "covariate", x = as.numeric(traits_data$disruptor_type.z))
+p16 <- autoplot.resid(sres_model_nudges_donate_disruptor_type.z, what = "qq", x = traits_data$disruptor_type.z, distribution = qnorm)
+
+sres_model_nudges_donate_openness_combined <- resids(model_nudges_donate)
+p17 <- autoplot.resid(sres_model_nudges_donate_openness_combined, what = "covariate", x = as.numeric(traits_data$openness_combined))
+p18 <- autoplot.resid(sres_model_nudges_donate_openness_combined, what = "qq", x = traits_data$openness_combined, distribution = qnorm)
+
+sres_model_nudges_donate_awareness_combined <- resids(model_nudges_donate)
+p19 <- autoplot.resid(sres_model_nudges_donate_awareness_combined, what = "covariate", x = as.numeric(traits_data$awareness_combined))
+p20 <- autoplot.resid(sres_model_nudges_donate_awareness_combined, what = "qq", x = traits_data$awareness_combined, distribution = qnorm)
+
+sres_model_nudges_donate_studios_combined <- resids(model_nudges_donate)
+p21 <- autoplot.resid(sres_model_nudges_donate_studios_combined, what = "covariate", x = as.numeric(traits_data$studios_combined))
+p22 <- autoplot.resid(sres_model_nudges_donate_studios_combined, what = "qq", x = traits_data$studios_combined, distribution = qnorm)
+
+model_nudges_donate_checks_1 <- grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, ncol = 6)
+ggsave("model_nudges_donate_checks_1.png", model_nudges_donate_checks_1,
+       width = 40,
+       height = 25,
+       units = "in",
+       dpi = 300)
+
+
+sres_model_nudges_donate_gender <- resids(model_nudges_donate)
+p23 <- autoplot.resid(sres_model_nudges_donate_gender, what = "covariate", x = traits_data$gender)
+p24 <- autoplot.resid(sres_model_nudges_donate_gender, what = "qq", x = traits_data$gender, distribution = qnorm)
+
+sres_model_nudges_donate_education <- resids(model_nudges_donate)
+p25 <- autoplot.resid(sres_model_nudges_donate_education, what = "covariate", x = traits_data$education)
+p26 <- autoplot.resid(sres_model_nudges_donate_education, what = "qq", x = traits_data$education, distribution = qnorm)
+
+sres_model_nudges_donate_weekly_hours <- resids(model_nudges_donate)
+p27 <- autoplot.resid(sres_model_nudges_donate_weekly_hours, what = "covariate", x = traits_data$weekly_hours)
+p28 <- autoplot.resid(sres_model_nudges_donate_weekly_hours, what = "qq", x = traits_data$weekly_hours, distribution = qnorm)
+
+sres_model_nudges_donate_donation_habits <- resids(model_nudges_donate)
+p29 <- autoplot.resid(sres_model_nudges_donate_donation_habits, what = "covariate", x = traits_data$donation_habits)
+p30 <- autoplot.resid(sres_model_nudges_donate_donation_habits, what = "qq", x = traits_data$donation_habits, distribution = qnorm)
+
+sres_model_nudges_donate_media_habits <- resids(model_nudges_donate)
+p31 <- autoplot.resid(sres_model_nudges_donate_media_habits, what = "covariate", x = traits_data$media_habits)
+p32 <- autoplot.resid(sres_model_nudges_donate_media_habits, what = "qq", x = traits_data$media_habits, distribution = qnorm)
+
+model_nudges_donate_checks_2 <- grid.arrange(p23, p24, p25, p26, p27, p28, p29, p30, p31, p32, ncol = 4)
+ggsave("model_nudges_donate_checks_2.png", model_nudges_donate_checks_2,
+       width = 15,
+       height = 10,
+       units = "in",
+       dpi = 300)
+
+
+#plotting effects
+age_effect <- effect("age.z", model_nudges_donate)
+plot(age_effect, main = "Effect of age on making donations with nothing in return")
+
+studios_effect <- effect("studios_combined", model_nudges_donate)
+plot(studios_effect, main = "Effect of studio responsibilities on making donations with nothing in return")
+
+```
+
+
+```{r I am willing to watch livestreams of games, if they offer ways for the audience to support conservation efforts, include=TRUE, echo=TRUE}
+
+#summary stats
+traits_data %>%
+   count(watch_livestreams) %>% 
+   mutate(watch_livestreams_prop = round((n / sum(n)) * 100, 2))
+
+
+#count and percentages per response
+model_nudges_livestreams_stats <- traits_data %>%
+  count(watch_livestreams_chisq) %>% 
+  mutate(what_livestreams_chisq_prop = round((n / sum(n)) * 100, 2))
+          model_nudges_livestreams_stats
+          observed_counts_chisq_livestreams <- c(204, 143, 481)
+          chisq_livestreams <- chisq.test(observed_counts_chisq_livestreams)
+          print(chisq_livestreams)
+
+
+#convert to factors
+traits_data$watch_livestreams <- factor(traits_data$watch_livestreams, ordered = TRUE,  levels=c('1', '2', '3', '4', '5'))
+traits_data$watch_livestreams_chisq <- factor(traits_data$watch_livestreams_chisq, ordered = TRUE,  levels=c('1', '2', '3'))
+
+
+#model
+model_nudges_livestreams <- clm(watch_livestreams ~ age.z + gender + education + weekly_hours + nr + donation_habits + media_habits + philanthropist_type.z + socializer_type.z + achiever_type.z + player_type.z + free_spirit_type.z + disruptor_type.z + openness_combined + awareness_combined + studios_combined, data = traits_data)
+print(summary(model_nudges_livestreams))
+confint(model_nudges_livestreams, method = "Wald")
+drop1(model_nudges_livestreams, test = "Chisq")
+
+nominal_test(model_nudges_livestreams)
+scale_test(model_nudges_livestreams)
+
+
+#checks
+sres_model_nudges_livestreams_age.z <- resids(model_nudges_livestreams)
+p1 <- autoplot.resid(sres_model_nudges_livestreams_age.z, what = "covariate", x = as.numeric(traits_data$age.z))
+p2 <- autoplot.resid(sres_model_nudges_livestreams_age.z, what = "qq", x = traits_data$age.z, distribution = qnorm)
+
+sres_model_nudges_livestreams_nr <- resids(model_nudges_livestreams)
+p3 <- autoplot.resid(sres_model_nudges_livestreams_nr, what = "covariate", x = as.numeric(traits_data$nr))
+p4 <- autoplot.resid(sres_model_nudges_livestreams_nr, what = "qq", x = traits_data$nr, distribution = qnorm)
+
+sres_model_nudges_livestreams_philanthropist_type.z <- resids(model_nudges_livestreams)
+p5 <- autoplot.resid(sres_model_nudges_livestreams_philanthropist_type.z, what = "covariate", x = as.numeric(traits_data$philanthropist_type.z))
+p6 <- autoplot.resid(sres_model_nudges_livestreams_philanthropist_type.z, what = "qq", x = traits_data$philanthropist_type.z, distribution = qnorm)
+
+sres_model_nudges_livestreams_socializer_type.z <- resids(model_nudges_livestreams)
+p7 <- autoplot.resid(sres_model_nudges_livestreams_socializer_type.z, what = "covariate", x = as.numeric(traits_data$socializer_type.z))
+p8 <- autoplot.resid(sres_model_nudges_livestreams_socializer_type.z, what = "qq", x = traits_data$socializer_type.z, distribution = qnorm)
+
+sres_model_nudges_livestreams_achiever_type.z <- resids(model_nudges_livestreams)
+p9 <- autoplot.resid(sres_model_nudges_livestreams_achiever_type.z, what = "covariate", x = as.numeric(traits_data$achiever_type.z))
+p10 <- autoplot.resid(sres_model_nudges_livestreams_achiever_type.z, what = "qq", x = traits_data$achiever_type.z, distribution = qnorm)
+
+sres_model_nudges_livestreams_player_type.z <- resids(model_nudges_livestreams)
+p11 <- autoplot.resid(sres_model_nudges_livestreams_player_type.z, what = "covariate", x = as.numeric(traits_data$player_type.z))
+p12 <- autoplot.resid(sres_model_nudges_livestreams_player_type.z, what = "qq", x = traits_data$player_type.z, distribution = qnorm)
+
+sres_model_nudges_livestreams_free_spirit_type.z <- resids(model_nudges_livestreams)
+p13 <- autoplot.resid(sres_model_nudges_livestreams_free_spirit_type.z, what = "covariate", x = as.numeric(traits_data$free_spirit_type.z))
+p14 <- autoplot.resid(sres_model_nudges_livestreams_free_spirit_type.z, what = "qq", x = traits_data$free_spirit_type.z, distribution = qnorm)
+
+sres_model_nudges_livestreams_disruptor_type.z <- resids(model_nudges_livestreams)
+p15 <- autoplot.resid(sres_model_nudges_livestreams_disruptor_type.z, what = "covariate", x = as.numeric(traits_data$disruptor_type.z))
+p16 <- autoplot.resid(sres_model_nudges_livestreams_disruptor_type.z, what = "qq", x = traits_data$disruptor_type.z, distribution = qnorm)
+
+sres_model_nudges_livestreams_openness_combined <- resids(model_nudges_livestreams)
+p17 <- autoplot.resid(sres_model_nudges_livestreams_openness_combined, what = "covariate", x = as.numeric(traits_data$openness_combined))
+p18 <- autoplot.resid(sres_model_nudges_livestreams_openness_combined, what = "qq", x = traits_data$openness_combined, distribution = qnorm)
+
+sres_model_nudges_livestreams_awareness_combined <- resids(model_nudges_livestreams)
+p19 <- autoplot.resid(sres_model_nudges_livestreams_awareness_combined, what = "covariate", x = as.numeric(traits_data$awareness_combined))
+p20 <- autoplot.resid(sres_model_nudges_livestreams_awareness_combined, what = "qq", x = traits_data$awareness_combined, distribution = qnorm)
+
+sres_model_nudges_livestreams_studios_combined <- resids(model_nudges_livestreams)
+p21 <- autoplot.resid(sres_model_nudges_livestreams_studios_combined, what = "covariate", x = as.numeric(traits_data$studios_combined))
+p22 <- autoplot.resid(sres_model_nudges_livestreams_studios_combined, what = "qq", x = traits_data$studios_combined, distribution = qnorm)
+
+model_nudges_livestreams_checks_1 <- grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, ncol = 6)
+ggsave("model_nudges_livestreams_checks_1.png", model_nudges_livestreams_checks_1,
+       width = 40,
+       height = 25,
+       units = "in",
+       dpi = 300)
+
+
+sres_model_nudges_livestreams_gender <- resids(model_nudges_livestreams)
+p23 <- autoplot.resid(sres_model_nudges_livestreams_gender, what = "covariate", x = traits_data$gender)
+p24 <- autoplot.resid(sres_model_nudges_livestreams_gender, what = "qq", x = traits_data$gender, distribution = qnorm)
+
+sres_model_nudges_livestreams_education <- resids(model_nudges_livestreams)
+p25 <- autoplot.resid(sres_model_nudges_livestreams_education, what = "covariate", x = traits_data$education)
+p26 <- autoplot.resid(sres_model_nudges_livestreams_education, what = "qq", x = traits_data$education, distribution = qnorm)
+
+sres_model_nudges_livestreams_weekly_hours <- resids(model_nudges_livestreams)
+p27 <- autoplot.resid(sres_model_nudges_livestreams_weekly_hours, what = "covariate", x = traits_data$weekly_hours)
+p28 <- autoplot.resid(sres_model_nudges_livestreams_weekly_hours, what = "qq", x = traits_data$weekly_hours, distribution = qnorm)
+
+sres_model_nudges_livestreams_donation_habits <- resids(model_nudges_livestreams)
+p29 <- autoplot.resid(sres_model_nudges_livestreams_donation_habits, what = "covariate", x = traits_data$donation_habits)
+p30 <- autoplot.resid(sres_model_nudges_livestreams_donation_habits, what = "qq", x = traits_data$donation_habits, distribution = qnorm)
+
+sres_model_nudges_livestreams_media_habits <- resids(model_nudges_livestreams)
+p31 <- autoplot.resid(sres_model_nudges_livestreams_media_habits, what = "covariate", x = traits_data$media_habits)
+p32 <- autoplot.resid(sres_model_nudges_livestreams_media_habits, what = "qq", x = traits_data$media_habits, distribution = qnorm)
+
+model_nudges_livestreams_checks_2 <- grid.arrange(p23, p24, p25, p26, p27, p28, p29, p30, p31, p32, ncol = 4)
+ggsave("model_nudges_livestreams_checks_2.png", model_nudges_livestreams_checks_2,
+       width = 15,
+       height = 10,
+       units = "in",
+       dpi = 300)
+
+
+#plotting effects
+age_effect <- effect("age.z", model_nudges_livestreams)
+plot(age_effect, main = "Effect of age on watching livestreams")
+
+```
+
+
+```{r I am willing to sign in-game petitions in support of conservation efforts, include=TRUE, echo=TRUE}
+
+#summary stats
+traits_data %>%
+   count(sign_petitions) %>% 
+   mutate(sign_petitions_prop = round((n / sum(n)) * 100, 2))
+
+
+#chisq
+model_nudges_petitions_stats <- traits_data %>%
+  count(sign_petitions_chisq) %>% 
+  mutate(sign_petitions_chisq_prop = round((n / sum(n)) * 100, 2))
+          model_nudges_petitions_stats
+          observed_counts_chisq_petitions <- c(149, 113, 566)
+          chisq_petitions <- chisq.test(observed_counts_chisq_petitions)
+          print(chisq_petitions)
+
+
+#convert to factors
+traits_data$sign_petitions <- factor(traits_data$sign_petitions, ordered = TRUE,  levels=c('1', '2', '3', '4', '5'))
+traits_data$sign_petitions_chisq <- factor(traits_data$sign_petitions_chisq, ordered = TRUE,  levels=c('1', '2', '3'))
+
+
+#model
+model_nudges_petitions <- clm(sign_petitions ~ age.z + gender + education + weekly_hours + nr + donation_habits + media_habits + philanthropist_type.z + socializer_type.z + achiever_type.z + player_type.z + free_spirit_type.z + disruptor_type.z + openness_combined + awareness_combined + studios_combined, data = traits_data)
+print(summary(model_nudges_petitions))
+confint(model_nudges_petitions, method = "Wald")
+drop1(model_nudges_petitions, test = "Chisq")
+
+nominal_test(model_nudges_petitions)
+scale_test(model_nudges_petitions)
+
+
+#checks
+sres_model_nudges_petitions_age.z <- resids(model_nudges_petitions)
+p1 <- autoplot.resid(sres_model_nudges_petitions_age.z, what = "covariate", x = as.numeric(traits_data$age.z))
+p2 <- autoplot.resid(sres_model_nudges_petitions_age.z, what = "qq", x = traits_data$age.z, distribution = qnorm)
+
+sres_model_nudges_petitions_nr <- resids(model_nudges_petitions)
+p3 <- autoplot.resid(sres_model_nudges_petitions_nr, what = "covariate", x = as.numeric(traits_data$nr))
+p4 <- autoplot.resid(sres_model_nudges_petitions_nr, what = "qq", x = traits_data$nr, distribution = qnorm)
+
+sres_model_nudges_petitions_philanthropist_type.z <- resids(model_nudges_petitions)
+p5 <- autoplot.resid(sres_model_nudges_petitions_philanthropist_type.z, what = "covariate", x = as.numeric(traits_data$philanthropist_type.z))
+p6 <- autoplot.resid(sres_model_nudges_petitions_philanthropist_type.z, what = "qq", x = traits_data$philanthropist_type.z, distribution = qnorm)
+
+sres_model_nudges_petitions_socializer_type.z <- resids(model_nudges_petitions)
+p7 <- autoplot.resid(sres_model_nudges_petitions_socializer_type.z, what = "covariate", x = as.numeric(traits_data$socializer_type.z))
+p8 <- autoplot.resid(sres_model_nudges_petitions_socializer_type.z, what = "qq", x = traits_data$socializer_type.z, distribution = qnorm)
+
+sres_model_nudges_petitions_achiever_type.z <- resids(model_nudges_petitions)
+p9 <- autoplot.resid(sres_model_nudges_petitions_achiever_type.z, what = "covariate", x = as.numeric(traits_data$achiever_type.z))
+p10 <- autoplot.resid(sres_model_nudges_petitions_achiever_type.z, what = "qq", x = traits_data$achiever_type.z, distribution = qnorm)
+
+sres_model_nudges_petitions_player_type.z <- resids(model_nudges_petitions)
+p11 <- autoplot.resid(sres_model_nudges_petitions_player_type.z, what = "covariate", x = as.numeric(traits_data$player_type.z))
+p12 <- autoplot.resid(sres_model_nudges_petitions_player_type.z, what = "qq", x = traits_data$player_type.z, distribution = qnorm)
+
+sres_model_nudges_petitions_free_spirit_type.z <- resids(model_nudges_petitions)
+p13 <- autoplot.resid(sres_model_nudges_petitions_free_spirit_type.z, what = "covariate", x = as.numeric(traits_data$free_spirit_type.z))
+p14 <- autoplot.resid(sres_model_nudges_petitions_free_spirit_type.z, what = "qq", x = traits_data$free_spirit_type.z, distribution = qnorm)
+
+sres_model_nudges_petitions_disruptor_type.z <- resids(model_nudges_petitions)
+p15 <- autoplot.resid(sres_model_nudges_petitions_disruptor_type.z, what = "covariate", x = as.numeric(traits_data$disruptor_type.z))
+p16 <- autoplot.resid(sres_model_nudges_petitions_disruptor_type.z, what = "qq", x = traits_data$disruptor_type.z, distribution = qnorm)
+
+sres_model_nudges_petitions_openness_combined <- resids(model_nudges_petitions)
+p17 <- autoplot.resid(sres_model_nudges_petitions_openness_combined, what = "covariate", x = as.numeric(traits_data$openness_combined))
+p18 <- autoplot.resid(sres_model_nudges_petitions_openness_combined, what = "qq", x = traits_data$openness_combined, distribution = qnorm)
+
+sres_model_nudges_petitions_awareness_combined <- resids(model_nudges_petitions)
+p19 <- autoplot.resid(sres_model_nudges_petitions_awareness_combined, what = "covariate", x = as.numeric(traits_data$awareness_combined))
+p20 <- autoplot.resid(sres_model_nudges_petitions_awareness_combined, what = "qq", x = traits_data$awareness_combined, distribution = qnorm)
+
+sres_model_nudges_petitions_studios_combined <- resids(model_nudges_petitions)
+p21 <- autoplot.resid(sres_model_nudges_petitions_studios_combined, what = "covariate", x = as.numeric(traits_data$studios_combined))
+p22 <- autoplot.resid(sres_model_nudges_petitions_studios_combined, what = "qq", x = traits_data$studios_combined, distribution = qnorm)
+
+model_nudges_petitions_checks_1 <- grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, ncol = 6)
+ggsave("model_nudges_petitions_checks_1.png", model_nudges_petitions_checks_1,
+       width = 40,
+       height = 25,
+       units = "in",
+       dpi = 300)
+
+
+sres_model_nudges_petitions_gender <- resids(model_nudges_petitions)
+p23 <- autoplot.resid(sres_model_nudges_petitions_gender, what = "covariate", x = traits_data$gender)
+p24 <- autoplot.resid(sres_model_nudges_petitions_gender, what = "qq", x = traits_data$gender, distribution = qnorm)
+
+sres_model_nudges_petitions_education <- resids(model_nudges_petitions)
+p25 <- autoplot.resid(sres_model_nudges_petitions_education, what = "covariate", x = traits_data$education)
+p26 <- autoplot.resid(sres_model_nudges_petitions_education, what = "qq", x = traits_data$education, distribution = qnorm)
+
+sres_model_nudges_petitions_weekly_hours <- resids(model_nudges_petitions)
+p27 <- autoplot.resid(sres_model_nudges_petitions_weekly_hours, what = "covariate", x = traits_data$weekly_hours)
+p28 <- autoplot.resid(sres_model_nudges_petitions_weekly_hours, what = "qq", x = traits_data$weekly_hours, distribution = qnorm)
+
+sres_model_nudges_petitions_donation_habits <- resids(model_nudges_petitions)
+p29 <- autoplot.resid(sres_model_nudges_petitions_donation_habits, what = "covariate", x = traits_data$donation_habits)
+p30 <- autoplot.resid(sres_model_nudges_petitions_donation_habits, what = "qq", x = traits_data$donation_habits, distribution = qnorm)
+
+sres_model_nudges_petitions_media_habits <- resids(model_nudges_petitions)
+p31 <- autoplot.resid(sres_model_nudges_petitions_media_habits, what = "covariate", x = traits_data$media_habits)
+p32 <- autoplot.resid(sres_model_nudges_petitions_media_habits, what = "qq", x = traits_data$media_habits, distribution = qnorm)
+
+model_nudges_petitions_checks_2 <- grid.arrange(p23, p24, p25, p26, p27, p28, p29, p30, p31, p32, ncol = 4)
+ggsave("model_nudges_petitions_checks_2.png", model_nudges_petitions_checks_2,
+       width = 15,
+       height = 10,
+       units = "in",
+       dpi = 300)
+
+
+#plotting effects
+age_effect <- effect("age.z", model_nudges_petitions)
+plot(age_effect, main = "Effect of age on signing in-game petitions")
+
+```
+
+
+```{r I am willing to earn in-game trophies/achievements that result in the game’s studio taking action to support conservation efforts, include=TRUE, echo=TRUE}
+
+#summary stats
+traits_data %>%
+   count(earn_ingame_achievements) %>% 
+   mutate(earn_ingame_achievements_prop = round((n / sum(n)) * 100, 2))
+
+
+#chisq
+model_nudges_achievements_stats <- traits_data %>%
+  count(earn_ingame_achievements_chisq) %>% 
+  mutate(earn_ingame_achievements_chisq_prop = round((n / sum(n)) * 100, 2))
+          model_nudges_achievements_stats
+          observed_counts_chisq_achievements <- c(77, 91, 660)
+          chisq_achievements <- chisq.test(observed_counts_chisq_achievements)
+          print(chisq_achievements)
+
+
+#convert to factors
+traits_data$earn_ingame_achievements <- factor(traits_data$earn_ingame_achievements, ordered = TRUE,  levels=c('1', '2', '3', '4', '5'))
+traits_data$earn_ingame_achievements_chisq <- factor(traits_data$earn_ingame_achievements_chisq, ordered = TRUE,  levels=c('1', '2', '3'))
+
+
+#model
+model_nudges_achievements <- clm(earn_ingame_achievements ~ age.z + gender + education + weekly_hours + nr + donation_habits + media_habits + philanthropist_type.z + socializer_type.z + achiever_type.z + player_type.z + free_spirit_type.z + disruptor_type.z + openness_combined + awareness_combined + studios_combined, data = traits_data)
+print(summary(model_nudges_achievements))
+confint(model_nudges_achievements, method = "Wald")
+drop1(model_nudges_achievements, test = "Chisq")
+
+nominal_test(model_nudges_achievements)
+scale_test(model_nudges_achievements)
+
+
+#checks
+sres_model_nudges_achievements_age.z <- resids(model_nudges_achievements)
+p1 <- autoplot.resid(sres_model_nudges_achievements_age.z, what = "covariate", x = as.numeric(traits_data$age.z))
+p2 <- autoplot.resid(sres_model_nudges_achievements_age.z, what = "qq", x = traits_data$age.z, distribution = qnorm)
+
+sres_model_nudges_achievements_nr <- resids(model_nudges_achievements)
+p3 <- autoplot.resid(sres_model_nudges_achievements_nr, what = "covariate", x = as.numeric(traits_data$nr))
+p4 <- autoplot.resid(sres_model_nudges_achievements_nr, what = "qq", x = traits_data$nr, distribution = qnorm)
+
+sres_model_nudges_achievements_philanthropist_type.z <- resids(model_nudges_achievements)
+p5 <- autoplot.resid(sres_model_nudges_achievements_philanthropist_type.z, what = "covariate", x = as.numeric(traits_data$philanthropist_type.z))
+p6 <- autoplot.resid(sres_model_nudges_achievements_philanthropist_type.z, what = "qq", x = traits_data$philanthropist_type.z, distribution = qnorm)
+
+sres_model_nudges_achievements_socializer_type.z <- resids(model_nudges_achievements)
+p7 <- autoplot.resid(sres_model_nudges_achievements_socializer_type.z, what = "covariate", x = as.numeric(traits_data$socializer_type.z))
+p8 <- autoplot.resid(sres_model_nudges_achievements_socializer_type.z, what = "qq", x = traits_data$socializer_type.z, distribution = qnorm)
+
+sres_model_nudges_achievements_achiever_type.z <- resids(model_nudges_achievements)
+p9 <- autoplot.resid(sres_model_nudges_achievements_achiever_type.z, what = "covariate", x = as.numeric(traits_data$achiever_type.z))
+p10 <- autoplot.resid(sres_model_nudges_achievements_achiever_type.z, what = "qq", x = traits_data$achiever_type.z, distribution = qnorm)
+
+sres_model_nudges_achievements_player_type.z <- resids(model_nudges_achievements)
+p11 <- autoplot.resid(sres_model_nudges_achievements_player_type.z, what = "covariate", x = as.numeric(traits_data$player_type.z))
+p12 <- autoplot.resid(sres_model_nudges_achievements_player_type.z, what = "qq", x = traits_data$player_type.z, distribution = qnorm)
+
+sres_model_nudges_achievements_free_spirit_type.z <- resids(model_nudges_achievements)
+p13 <- autoplot.resid(sres_model_nudges_achievements_free_spirit_type.z, what = "covariate", x = as.numeric(traits_data$free_spirit_type.z))
+p14 <- autoplot.resid(sres_model_nudges_achievements_free_spirit_type.z, what = "qq", x = traits_data$free_spirit_type.z, distribution = qnorm)
+
+sres_model_nudges_achievements_disruptor_type.z <- resids(model_nudges_achievements)
+p15 <- autoplot.resid(sres_model_nudges_achievements_disruptor_type.z, what = "covariate", x = as.numeric(traits_data$disruptor_type.z))
+p16 <- autoplot.resid(sres_model_nudges_achievements_disruptor_type.z, what = "qq", x = traits_data$disruptor_type.z, distribution = qnorm)
+
+sres_model_nudges_achievements_openness_combined <- resids(model_nudges_achievements)
+p17 <- autoplot.resid(sres_model_nudges_achievements_openness_combined, what = "covariate", x = as.numeric(traits_data$openness_combined))
+p18 <- autoplot.resid(sres_model_nudges_achievements_openness_combined, what = "qq", x = traits_data$openness_combined, distribution = qnorm)
+
+sres_model_nudges_achievements_awareness_combined <- resids(model_nudges_achievements)
+p19 <- autoplot.resid(sres_model_nudges_achievements_awareness_combined, what = "covariate", x = as.numeric(traits_data$awareness_combined))
+p20 <- autoplot.resid(sres_model_nudges_achievements_awareness_combined, what = "qq", x = traits_data$awareness_combined, distribution = qnorm)
+
+sres_model_nudges_achievements_studios_combined <- resids(model_nudges_achievements)
+p21 <- autoplot.resid(sres_model_nudges_achievements_studios_combined, what = "covariate", x = as.numeric(traits_data$studios_combined))
+p22 <- autoplot.resid(sres_model_nudges_achievements_studios_combined, what = "qq", x = traits_data$studios_combined, distribution = qnorm)
+
+model_nudges_achievements_checks_1 <- grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, ncol = 6)
+ggsave("model_nudges_achievements_checks_1.png", model_nudges_achievements_checks_1,
+       width = 40,
+       height = 25,
+       units = "in",
+       dpi = 300)
+
+
+sres_model_nudges_achievements_gender <- resids(model_nudges_achievements)
+p23 <- autoplot.resid(sres_model_nudges_achievements_gender, what = "covariate", x = traits_data$gender)
+p24 <- autoplot.resid(sres_model_nudges_achievements_gender, what = "qq", x = traits_data$gender, distribution = qnorm)
+
+sres_model_nudges_achievements_education <- resids(model_nudges_achievements)
+p25 <- autoplot.resid(sres_model_nudges_achievements_education, what = "covariate", x = traits_data$education)
+p26 <- autoplot.resid(sres_model_nudges_achievements_education, what = "qq", x = traits_data$education, distribution = qnorm)
+
+sres_model_nudges_achievements_weekly_hours <- resids(model_nudges_achievements)
+p27 <- autoplot.resid(sres_model_nudges_achievements_weekly_hours, what = "covariate", x = traits_data$weekly_hours)
+p28 <- autoplot.resid(sres_model_nudges_achievements_weekly_hours, what = "qq", x = traits_data$weekly_hours, distribution = qnorm)
+
+sres_model_nudges_achievements_donation_habits <- resids(model_nudges_achievements)
+p29 <- autoplot.resid(sres_model_nudges_achievements_donation_habits, what = "covariate", x = traits_data$donation_habits)
+p30 <- autoplot.resid(sres_model_nudges_achievements_donation_habits, what = "qq", x = traits_data$donation_habits, distribution = qnorm)
+
+sres_model_nudges_achievements_media_habits <- resids(model_nudges_achievements)
+p31 <- autoplot.resid(sres_model_nudges_achievements_media_habits, what = "covariate", x = traits_data$media_habits)
+p32 <- autoplot.resid(sres_model_nudges_achievements_media_habits, what = "qq", x = traits_data$media_habits, distribution = qnorm)
+
+model_nudges_achievements_checks_2 <- grid.arrange(p23, p24, p25, p26, p27, p28, p29, p30, p31, p32, ncol = 4)
+ggsave("model_nudges_achievements_checks_2.png", model_nudges_achievements_checks_2,
+       width = 15,
+       height = 10,
+       units = "in",
+       dpi = 300)
+
+
+#plotting effects
+age_effect <- effect("age.z", model_nudges_achievements)
+plot(age_effect, main = "Effect of age on earning in-game trophies or achievements")
+
+gender_effect <- effect("gender", model_nudges_achievements)
+plot(gender_effect, main = "Effect of gender on earning in-game trophies or achievements")
+
+gaming_effect <- effect("weekly_hours", model_nudges_achievements)
+plot(gaming_effect, main = "Effect of weekly gaming hours on earning in-game trophies or achievements")
+
+```
+
+
+```{r I am willing to pay a slightly higher price for video games, if the extra profit goes to conservation efforts, include=TRUE, echo=TRUE}
+
+#summary stats
+traits_data %>%
+   count(pay_more) %>% 
+   mutate(pay_more_prop = round((n / sum(n)) * 100, 2))
+
+
+#chisq
+model_nudges_pay_stats <- traits_data %>%
+  count(pay_more_chisq) %>% 
+  mutate(pay_more_chisq_prop = round((n / sum(n)) * 100, 2))
+          model_nudges_pay_stats
+          observed_counts_chisq_pay <- c(265, 131, 432)
+          chisq_pay <- chisq.test(observed_counts_chisq_pay)
+          print(chisq_pay)
+
+
+#convert to factors
+traits_data$pay_more <- factor(traits_data$pay_more, ordered = TRUE,  levels=c('1', '2', '3', '4', '5'))
+traits_data$pay_more_chisq <- factor(traits_data$pay_more_chisq, ordered = TRUE,  levels=c('1', '2', '3'))
+
+
+#model
+model_nudges_pay <- clm(pay_more ~ age.z + gender + education + weekly_hours + nr + donation_habits + media_habits + philanthropist_type.z + socializer_type.z + achiever_type.z + player_type.z + free_spirit_type.z + disruptor_type.z + openness_combined + awareness_combined + studios_combined, data = traits_data)
+print(summary(model_nudges_pay))
+confint(model_nudges_pay, method = "Wald")
+drop1(model_nudges_pay, test = "Chisq")
+
+nominal_test(model_nudges_pay)
+scale_test(model_nudges_pay)
+
+
+#checks
+sres_model_nudges_pay_age.z <- resids(model_nudges_pay)
+p1 <- autoplot.resid(sres_model_nudges_pay_age.z, what = "covariate", x = as.numeric(traits_data$age.z))
+p2 <- autoplot.resid(sres_model_nudges_pay_age.z, what = "qq", x = traits_data$age.z, distribution = qnorm)
+
+sres_model_nudges_pay_nr <- resids(model_nudges_pay)
+p3 <- autoplot.resid(sres_model_nudges_pay_nr, what = "covariate", x = as.numeric(traits_data$nr))
+p4 <- autoplot.resid(sres_model_nudges_pay_nr, what = "qq", x = traits_data$nr, distribution = qnorm)
+
+sres_model_nudges_pay_philanthropist_type.z <- resids(model_nudges_pay)
+p5 <- autoplot.resid(sres_model_nudges_pay_philanthropist_type.z, what = "covariate", x = as.numeric(traits_data$philanthropist_type.z))
+p6 <- autoplot.resid(sres_model_nudges_pay_philanthropist_type.z, what = "qq", x = traits_data$philanthropist_type.z, distribution = qnorm)
+
+sres_model_nudges_pay_socializer_type.z <- resids(model_nudges_pay)
+p7 <- autoplot.resid(sres_model_nudges_pay_socializer_type.z, what = "covariate", x = as.numeric(traits_data$socializer_type.z))
+p8 <- autoplot.resid(sres_model_nudges_pay_socializer_type.z, what = "qq", x = traits_data$socializer_type.z, distribution = qnorm)
+
+sres_model_nudges_pay_achiever_type.z <- resids(model_nudges_pay)
+p9 <- autoplot.resid(sres_model_nudges_pay_achiever_type.z, what = "covariate", x = as.numeric(traits_data$achiever_type.z))
+p10 <- autoplot.resid(sres_model_nudges_pay_achiever_type.z, what = "qq", x = traits_data$achiever_type.z, distribution = qnorm)
+
+sres_model_nudges_pay_player_type.z <- resids(model_nudges_pay)
+p11 <- autoplot.resid(sres_model_nudges_pay_player_type.z, what = "covariate", x = as.numeric(traits_data$player_type.z))
+p12 <- autoplot.resid(sres_model_nudges_pay_player_type.z, what = "qq", x = traits_data$player_type.z, distribution = qnorm)
+
+sres_model_nudges_pay_free_spirit_type.z <- resids(model_nudges_pay)
+p13 <- autoplot.resid(sres_model_nudges_pay_free_spirit_type.z, what = "covariate", x = as.numeric(traits_data$free_spirit_type.z))
+p14 <- autoplot.resid(sres_model_nudges_pay_free_spirit_type.z, what = "qq", x = traits_data$free_spirit_type.z, distribution = qnorm)
+
+sres_model_nudges_pay_disruptor_type.z <- resids(model_nudges_pay)
+p15 <- autoplot.resid(sres_model_nudges_pay_disruptor_type.z, what = "covariate", x = as.numeric(traits_data$disruptor_type.z))
+p16 <- autoplot.resid(sres_model_nudges_pay_disruptor_type.z, what = "qq", x = traits_data$disruptor_type.z, distribution = qnorm)
+
+sres_model_nudges_pay_openness_combined <- resids(model_nudges_pay)
+p17 <- autoplot.resid(sres_model_nudges_pay_openness_combined, what = "covariate", x = as.numeric(traits_data$openness_combined))
+p18 <- autoplot.resid(sres_model_nudges_pay_openness_combined, what = "qq", x = traits_data$openness_combined, distribution = qnorm)
+
+sres_model_nudges_pay_awareness_combined <- resids(model_nudges_pay)
+p19 <- autoplot.resid(sres_model_nudges_pay_awareness_combined, what = "covariate", x = as.numeric(traits_data$awareness_combined))
+p20 <- autoplot.resid(sres_model_nudges_pay_awareness_combined, what = "qq", x = traits_data$awareness_combined, distribution = qnorm)
+
+sres_model_nudges_pay_studios_combined <- resids(model_nudges_pay)
+p21 <- autoplot.resid(sres_model_nudges_pay_studios_combined, what = "covariate", x = as.numeric(traits_data$studios_combined))
+p22 <- autoplot.resid(sres_model_nudges_pay_studios_combined, what = "qq", x = traits_data$studios_combined, distribution = qnorm)
+
+model_nudges_pay_checks_1 <- grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, ncol = 6)
+ggsave("model_nudges_pay_checks_1.png", model_nudges_pay_checks_1,
+       width = 40,
+       height = 25,
+       units = "in",
+       dpi = 300)
+
+
+sres_model_nudges_pay_gender <- resids(model_nudges_pay)
+p23 <- autoplot.resid(sres_model_nudges_pay_gender, what = "covariate", x = traits_data$gender)
+p24 <- autoplot.resid(sres_model_nudges_pay_gender, what = "qq", x = traits_data$gender, distribution = qnorm)
+
+sres_model_nudges_pay_education <- resids(model_nudges_pay)
+p25 <- autoplot.resid(sres_model_nudges_pay_education, what = "covariate", x = traits_data$education)
+p26 <- autoplot.resid(sres_model_nudges_pay_education, what = "qq", x = traits_data$education, distribution = qnorm)
+
+sres_model_nudges_pay_weekly_hours <- resids(model_nudges_pay)
+p27 <- autoplot.resid(sres_model_nudges_pay_weekly_hours, what = "covariate", x = traits_data$weekly_hours)
+p28 <- autoplot.resid(sres_model_nudges_pay_weekly_hours, what = "qq", x = traits_data$weekly_hours, distribution = qnorm)
+
+sres_model_nudges_pay_donation_habits <- resids(model_nudges_pay)
+p29 <- autoplot.resid(sres_model_nudges_pay_donation_habits, what = "covariate", x = traits_data$donation_habits)
+p30 <- autoplot.resid(sres_model_nudges_pay_donation_habits, what = "qq", x = traits_data$donation_habits, distribution = qnorm)
+
+sres_model_nudges_pay_media_habits <- resids(model_nudges_pay)
+p31 <- autoplot.resid(sres_model_nudges_pay_media_habits, what = "covariate", x = traits_data$media_habits)
+p32 <- autoplot.resid(sres_model_nudges_pay_media_habits, what = "qq", x = traits_data$media_habits, distribution = qnorm)
+
+model_nudges_pay_checks_2 <- grid.arrange(p23, p24, p25, p26, p27, p28, p29, p30, p31, p32, ncol = 4)
+ggsave("model_nudges_pay_checks_2.png", model_nudges_pay_checks_2,
+       width = 15,
+       height = 10,
+       units = "in",
+       dpi = 300)
+
+
+#plotting effects
+age_effect <- effect("age.z", model_nudges_pay)
+plot(age_effect, main = "Effect of age on paying a higher price")
+
+```
+
+
+```{r I am willing to organise in-game community events for players to show support for conservation efforts, include=TRUE, echo=TRUE}
+
+#summary stats
+traits_data %>%
+   count(organise_ingame_events) %>% 
+   mutate(organise_ingame_events_prop = round((n / sum(n)) * 100, 2))
+
+
+#chisq
+model_nudges_events_stats <- traits_data %>%
+  count(organise_ingame_events_chisq) %>% 
+  mutate(organise_ingame_events_chisq_prop = round((n / sum(n)) * 100, 2))
+          model_nudges_events_stats
+          observed_counts_chisq_events <- c(420, 178, 230)
+          chisq_events <- chisq.test(observed_counts_chisq_events)
+          print(chisq_events)
+
+
+#convert to factors
+traits_data$organise_ingame_events <- factor(traits_data$organise_ingame_events, ordered = TRUE,  levels=c('1', '2', '3', '4', '5'))
+traits_data$organise_ingame_events_chisq <- factor(traits_data$organise_ingame_events_chisq, ordered = TRUE,  levels=c('1', '2', '3'))
+
+
+#model
+model_nudges_events <- clm(organise_ingame_events ~ age.z + gender + education + weekly_hours + nr + donation_habits + media_habits + philanthropist_type.z + socializer_type.z + achiever_type.z + player_type.z + free_spirit_type.z + disruptor_type.z + openness_combined + awareness_combined + studios_combined, data = traits_data)
+print(summary(model_nudges_events))
+confint(model_nudges_events, method = "Wald")
+drop1(model_nudges_events, test = "Chisq")
+
+nominal_test(model_nudges_events)
+scale_test(model_nudges_events)
+
+#checks
+sres_model_nudges_events_age.z <- resids(model_nudges_events)
+p1 <- autoplot.resid(sres_model_nudges_events_age.z, what = "covariate", x = as.numeric(traits_data$age.z))
+p2 <- autoplot.resid(sres_model_nudges_events_age.z, what = "qq", x = traits_data$age.z, distribution = qnorm)
+
+sres_model_nudges_events_nr <- resids(model_nudges_events)
+p3 <- autoplot.resid(sres_model_nudges_events_nr, what = "covariate", x = as.numeric(traits_data$nr))
+p4 <- autoplot.resid(sres_model_nudges_events_nr, what = "qq", x = traits_data$nr, distribution = qnorm)
+
+sres_model_nudges_events_philanthropist_type.z <- resids(model_nudges_events)
+p5 <- autoplot.resid(sres_model_nudges_events_philanthropist_type.z, what = "covariate", x = as.numeric(traits_data$philanthropist_type.z))
+p6 <- autoplot.resid(sres_model_nudges_events_philanthropist_type.z, what = "qq", x = traits_data$philanthropist_type.z, distribution = qnorm)
+
+sres_model_nudges_events_socializer_type.z <- resids(model_nudges_events)
+p7 <- autoplot.resid(sres_model_nudges_events_socializer_type.z, what = "covariate", x = as.numeric(traits_data$socializer_type.z))
+p8 <- autoplot.resid(sres_model_nudges_events_socializer_type.z, what = "qq", x = traits_data$socializer_type.z, distribution = qnorm)
+
+sres_model_nudges_events_achiever_type.z <- resids(model_nudges_events)
+p9 <- autoplot.resid(sres_model_nudges_events_achiever_type.z, what = "covariate", x = as.numeric(traits_data$achiever_type.z))
+p10 <- autoplot.resid(sres_model_nudges_events_achiever_type.z, what = "qq", x = traits_data$achiever_type.z, distribution = qnorm)
+
+sres_model_nudges_events_player_type.z <- resids(model_nudges_events)
+p11 <- autoplot.resid(sres_model_nudges_events_player_type.z, what = "covariate", x = as.numeric(traits_data$player_type.z))
+p12 <- autoplot.resid(sres_model_nudges_events_player_type.z, what = "qq", x = traits_data$player_type.z, distribution = qnorm)
+
+sres_model_nudges_events_free_spirit_type.z <- resids(model_nudges_events)
+p13 <- autoplot.resid(sres_model_nudges_events_free_spirit_type.z, what = "covariate", x = as.numeric(traits_data$free_spirit_type.z))
+p14 <- autoplot.resid(sres_model_nudges_events_free_spirit_type.z, what = "qq", x = traits_data$free_spirit_type.z, distribution = qnorm)
+
+sres_model_nudges_events_disruptor_type.z <- resids(model_nudges_events)
+p15 <- autoplot.resid(sres_model_nudges_events_disruptor_type.z, what = "covariate", x = as.numeric(traits_data$disruptor_type.z))
+p16 <- autoplot.resid(sres_model_nudges_events_disruptor_type.z, what = "qq", x = traits_data$disruptor_type.z, distribution = qnorm)
+
+sres_model_nudges_events_openness_combined <- resids(model_nudges_events)
+p17 <- autoplot.resid(sres_model_nudges_events_openness_combined, what = "covariate", x = as.numeric(traits_data$openness_combined))
+p18 <- autoplot.resid(sres_model_nudges_events_openness_combined, what = "qq", x = traits_data$openness_combined, distribution = qnorm)
+
+sres_model_nudges_events_awareness_combined <- resids(model_nudges_events)
+p19 <- autoplot.resid(sres_model_nudges_events_awareness_combined, what = "covariate", x = as.numeric(traits_data$awareness_combined))
+p20 <- autoplot.resid(sres_model_nudges_events_awareness_combined, what = "qq", x = traits_data$awareness_combined, distribution = qnorm)
+
+sres_model_nudges_events_studios_combined <- resids(model_nudges_events)
+p21 <- autoplot.resid(sres_model_nudges_events_studios_combined, what = "covariate", x = as.numeric(traits_data$studios_combined))
+p22 <- autoplot.resid(sres_model_nudges_events_studios_combined, what = "qq", x = traits_data$studios_combined, distribution = qnorm)
+
+model_nudges_events_checks_1 <- grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, ncol = 6)
+ggsave("model_nudges_events_checks_1.png", model_nudges_events_checks_1,
+       width = 40,
+       height = 25,
+       units = "in",
+       dpi = 300)
+
+
+sres_model_nudges_events_gender <- resids(model_nudges_events)
+p23 <- autoplot.resid(sres_model_nudges_events_gender, what = "covariate", x = traits_data$gender)
+p24 <- autoplot.resid(sres_model_nudges_events_gender, what = "qq", x = traits_data$gender, distribution = qnorm)
+
+sres_model_nudges_events_education <- resids(model_nudges_events)
+p25 <- autoplot.resid(sres_model_nudges_events_education, what = "covariate", x = traits_data$education)
+p26 <- autoplot.resid(sres_model_nudges_events_education, what = "qq", x = traits_data$education, distribution = qnorm)
+
+sres_model_nudges_events_weekly_hours <- resids(model_nudges_events)
+p27 <- autoplot.resid(sres_model_nudges_events_weekly_hours, what = "covariate", x = traits_data$weekly_hours)
+p28 <- autoplot.resid(sres_model_nudges_events_weekly_hours, what = "qq", x = traits_data$weekly_hours, distribution = qnorm)
+
+sres_model_nudges_events_donation_habits <- resids(model_nudges_events)
+p29 <- autoplot.resid(sres_model_nudges_events_donation_habits, what = "covariate", x = traits_data$donation_habits)
+p30 <- autoplot.resid(sres_model_nudges_events_donation_habits, what = "qq", x = traits_data$donation_habits, distribution = qnorm)
+
+sres_model_nudges_events_media_habits <- resids(model_nudges_events)
+p31 <- autoplot.resid(sres_model_nudges_events_media_habits, what = "covariate", x = traits_data$media_habits)
+p32 <- autoplot.resid(sres_model_nudges_events_media_habits, what = "qq", x = traits_data$media_habits, distribution = qnorm)
+
+model_nudges_events_checks_2 <- grid.arrange(p23, p24, p25, p26, p27, p28, p29, p30, p31, p32, ncol = 4)
+ggsave("model_nudges_events_checks_2.png", model_nudges_events_checks_2,
+       width = 15,
+       height = 10,
+       units = "in",
+       dpi = 300)
+
+
+#plotting effects
+age_effect <- effect("age.z", model_nudges_events)
+plot(age_effect, main = "Effect of age on organising community events")
+
+gaming_effect <- effect("weekly_hours", model_nudges_events)
+plot(gaming_effect, main = "Effect of weekly gaming hours on organising community events")
+
+```
+
+
+```{r I am willing to create and share content (e.g., mods, assets) that helps other players to show support for conservation efforts, include=TRUE, echo=TRUE}
+
+#summary stats
+traits_data %>%
+   count(create_share_content) %>% 
+   mutate(create_share_content_prop = round((n / sum(n)) * 100, 2))
+
+
+#chisq
+model_nudges_content_stats <- traits_data %>%
+  count(create_share_content_chisq) %>% 
+  mutate(create_share_content_chisq_prop = round((n / sum(n)) * 100, 2))
+          model_nudges_content_stats
+          observed_counts_chisq_content <- c(360, 197, 271)
+          chisq_content <- chisq.test(observed_counts_chisq_content)
+          print(chisq_content)
+
+
+#convert to factors
+traits_data$create_share_content <- factor(traits_data$create_share_content, ordered = TRUE,  levels=c('1', '2', '3', '4', '5'))
+traits_data$create_share_content_chisq <- factor(traits_data$create_share_content_chisq, ordered = TRUE,  levels=c('1', '2', '3'))
+
+
+#model
+model_nudges_content <- clm(create_share_content ~ age.z + gender + education + weekly_hours + nr + donation_habits + media_habits + philanthropist_type.z + socializer_type.z + achiever_type.z + player_type.z + free_spirit_type.z + disruptor_type.z + openness_combined + awareness_combined + studios_combined, data = traits_data)
+print(summary(model_nudges_content))
+confint(model_nudges_content, method = "Wald")
+drop1(model_nudges_content, test = "Chisq")
+
+nominal_test(model_nudges_content)
+scale_test(model_nudges_content)
+
+
+#checks
+sres_model_nudges_content_age.z <- resids(model_nudges_content)
+p1 <- autoplot.resid(sres_model_nudges_content_age.z, what = "covariate", x = as.numeric(traits_data$age.z))
+p2 <- autoplot.resid(sres_model_nudges_content_age.z, what = "qq", x = traits_data$age.z, distribution = qnorm)
+
+sres_model_nudges_content_nr <- resids(model_nudges_content)
+p3 <- autoplot.resid(sres_model_nudges_content_nr, what = "covariate", x = as.numeric(traits_data$nr))
+p4 <- autoplot.resid(sres_model_nudges_content_nr, what = "qq", x = traits_data$nr, distribution = qnorm)
+
+sres_model_nudges_content_philanthropist_type.z <- resids(model_nudges_content)
+p5 <- autoplot.resid(sres_model_nudges_content_philanthropist_type.z, what = "covariate", x = as.numeric(traits_data$philanthropist_type.z))
+p6 <- autoplot.resid(sres_model_nudges_content_philanthropist_type.z, what = "qq", x = traits_data$philanthropist_type.z, distribution = qnorm)
+
+sres_model_nudges_content_socializer_type.z <- resids(model_nudges_content)
+p7 <- autoplot.resid(sres_model_nudges_content_socializer_type.z, what = "covariate", x = as.numeric(traits_data$socializer_type.z))
+p8 <- autoplot.resid(sres_model_nudges_content_socializer_type.z, what = "qq", x = traits_data$socializer_type.z, distribution = qnorm)
+
+sres_model_nudges_content_achiever_type.z <- resids(model_nudges_content)
+p9 <- autoplot.resid(sres_model_nudges_content_achiever_type.z, what = "covariate", x = as.numeric(traits_data$achiever_type.z))
+p10 <- autoplot.resid(sres_model_nudges_content_achiever_type.z, what = "qq", x = traits_data$achiever_type.z, distribution = qnorm)
+
+sres_model_nudges_content_player_type.z <- resids(model_nudges_content)
+p11 <- autoplot.resid(sres_model_nudges_content_player_type.z, what = "covariate", x = as.numeric(traits_data$player_type.z))
+p12 <- autoplot.resid(sres_model_nudges_content_player_type.z, what = "qq", x = traits_data$player_type.z, distribution = qnorm)
+
+sres_model_nudges_content_free_spirit_type.z <- resids(model_nudges_content)
+p13 <- autoplot.resid(sres_model_nudges_content_free_spirit_type.z, what = "covariate", x = as.numeric(traits_data$free_spirit_type.z))
+p14 <- autoplot.resid(sres_model_nudges_content_free_spirit_type.z, what = "qq", x = traits_data$free_spirit_type.z, distribution = qnorm)
+
+sres_model_nudges_content_disruptor_type.z <- resids(model_nudges_content)
+p15 <- autoplot.resid(sres_model_nudges_content_disruptor_type.z, what = "covariate", x = as.numeric(traits_data$disruptor_type.z))
+p16 <- autoplot.resid(sres_model_nudges_content_disruptor_type.z, what = "qq", x = traits_data$disruptor_type.z, distribution = qnorm)
+
+sres_model_nudges_content_openness_combined <- resids(model_nudges_content)
+p17 <- autoplot.resid(sres_model_nudges_content_openness_combined, what = "covariate", x = as.numeric(traits_data$openness_combined))
+p18 <- autoplot.resid(sres_model_nudges_content_openness_combined, what = "qq", x = traits_data$openness_combined, distribution = qnorm)
+
+sres_model_nudges_content_awareness_combined <- resids(model_nudges_content)
+p19 <- autoplot.resid(sres_model_nudges_content_awareness_combined, what = "covariate", x = as.numeric(traits_data$awareness_combined))
+p20 <- autoplot.resid(sres_model_nudges_content_awareness_combined, what = "qq", x = traits_data$awareness_combined, distribution = qnorm)
+
+sres_model_nudges_content_studios_combined <- resids(model_nudges_content)
+p21 <- autoplot.resid(sres_model_nudges_content_studios_combined, what = "covariate", x = as.numeric(traits_data$studios_combined))
+p22 <- autoplot.resid(sres_model_nudges_content_studios_combined, what = "qq", x = traits_data$studios_combined, distribution = qnorm)
+
+model_nudges_content_checks_1 <- grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, ncol = 6)
+ggsave("model_nudges_content_checks_1.png", model_nudges_content_checks_1,
+       width = 40,
+       height = 25,
+       units = "in",
+       dpi = 300)
+
+
+sres_model_nudges_content_gender <- resids(model_nudges_content)
+p23 <- autoplot.resid(sres_model_nudges_content_gender, what = "covariate", x = traits_data$gender)
+p24 <- autoplot.resid(sres_model_nudges_content_gender, what = "qq", x = traits_data$gender, distribution = qnorm)
+
+sres_model_nudges_content_education <- resids(model_nudges_content)
+p25 <- autoplot.resid(sres_model_nudges_content_education, what = "covariate", x = traits_data$education)
+p26 <- autoplot.resid(sres_model_nudges_content_education, what = "qq", x = traits_data$education, distribution = qnorm)
+
+sres_model_nudges_content_weekly_hours <- resids(model_nudges_content)
+p27 <- autoplot.resid(sres_model_nudges_content_weekly_hours, what = "covariate", x = traits_data$weekly_hours)
+p28 <- autoplot.resid(sres_model_nudges_content_weekly_hours, what = "qq", x = traits_data$weekly_hours, distribution = qnorm)
+
+sres_model_nudges_content_donation_habits <- resids(model_nudges_content)
+p29 <- autoplot.resid(sres_model_nudges_content_donation_habits, what = "covariate", x = traits_data$donation_habits)
+p30 <- autoplot.resid(sres_model_nudges_content_donation_habits, what = "qq", x = traits_data$donation_habits, distribution = qnorm)
+
+sres_model_nudges_content_media_habits <- resids(model_nudges_content)
+p31 <- autoplot.resid(sres_model_nudges_content_media_habits, what = "covariate", x = traits_data$media_habits)
+p32 <- autoplot.resid(sres_model_nudges_content_media_habits, what = "qq", x = traits_data$media_habits, distribution = qnorm)
+
+model_nudges_content_checks_2 <- grid.arrange(p23, p24, p25, p26, p27, p28, p29, p30, p31, p32, ncol = 4)
+ggsave("model_nudges_content_checks_2.png", model_nudges_content_checks_2,
+       width = 15,
+       height = 10,
+       units = "in",
+       dpi = 300)
+
+
+#plotting effects
+age_effect <- effect("age.z", model_nudges_content)
+plot(age_effect, main = "Effect of age on creating and sharing content")
+
+gaming_effect <- effect("weekly_hours", model_nudges_content)
+plot(gaming_effect, main = "Effect of weekly gaming hours on creating and sharing content")
+
+donations_effect <- effect("donation_habits", model_nudges_info)
+plot(donations_effect, main = "Effect of donation habits on creating and sharing content")
+
+```
+
+
+```{r making openness, awareness, and studios plots, include=TRUE, echo=TRUE}
+
+#pivot dataset to long format
+traits_long <- traits_data %>%
+  pivot_longer(cols = c("more_games_eco_issues", "more_games_support_conservation", "like_games_eco_issues", "like_games_support_conservation", "help_understand_causes_eco_issues", "raise_awareness_eco_issues", "raise_awareness_conservation", "show_how_support_conservation", "studios_provide_severity_info", "studios_provide_ways_support", "studios_have_responsibility", "studios_do_enough"), names_to = "statement", values_to = "response") %>%
+  mutate(response = as.character(response)) %>%
+  mutate(statement = recode_values(statement,
+    "more_games_eco_issues" ~ "I think more video games should address ecological issues",
+    "more_games_support_conservation" ~ "I think more video games should help players to support conservation efforts",
+    "like_games_eco_issues" ~ "I like when video games address ecological issues",
+    "like_games_support_conservation" ~ "I like when video games help players to support conservation efforts",
+    "help_understand_causes_eco_issues" ~ "Video games can help me to understand the causes of ecological issues",
+    "raise_awareness_eco_issues" ~ "Video games can raise my awareness of ecological issues",
+    "raise_awareness_conservation" ~ "Video games can raise my awareness of conservation efforts",
+    "show_how_support_conservation" ~ "Video games can show me how to support conservation efforts",
+    "studios_provide_severity_info" ~ "When studios develop video games about ecological issues, they should provide information on the real-world severity of these issues",
+    "studios_provide_ways_support" ~ "When studios develop video games about ecological issues, they should provide ways for players to support conservation efforts",
+    "studios_have_responsibility" ~ "Studios that develop video games about ecological issues have a responsibility to also support conservation efforts",
+    "studios_do_enough" ~ "Studios that develop video games about ecological issues currently do enough to support conservation efforts"))
+
+likert_colours <- c("1" = "#A50025", "2" = "#FA8F43", "3" = "#E6E0C8", "4" = "#7ECC3D", "5" = "#006737")
+
+likert_labels <- c("1" = "Strongly disagree", "2" = "Somewhat disagree", "3" = "Neither agree nor disagree", "4" = "Somewhat agree", "5" = "Strongly agree")
+
+statement_order <- c("I think more video games should address ecological issues",
+                     "I think more video games should help players to support conservation efforts",
+                     "I like when video games address ecological issues",
+                     "I like when video games help players to support conservation efforts",
+                     "Video games can help me to understand the causes of ecological issues",
+                     "Video games can raise my awareness of ecological issues",
+                     "Video games can raise my awareness of conservation efforts",
+                     "Video games can show me how to support conservation efforts",
+                     "When studios develop video games about ecological issues, they should provide information on the real-world severity of these issues",
+                     "When studios develop video games about ecological issues, they should provide ways for players to support conservation efforts",
+                     "Studios that develop video games about ecological issues have a responsibility to also support conservation efforts",
+                     "Studios that develop video games about ecological issues currently do enough to support conservation efforts")
+
+traits_long <- traits_long %>% mutate(statement = factor(statement, levels = statement_order)) 
+ 
+
+selected_statements_openness <- c("I think more video games should address ecological issues",
+                                  "I think more video games should help players to support conservation efforts",
+                                  "I like when video games address ecological issues",
+                                  "I like when video games help players to support conservation efforts")
+selected_statements_awareness <- c("Video games can help me to understand the causes of ecological issues",
+                                   "Video games can raise my awareness of ecological issues",
+                                   "Video games can raise my awareness of conservation efforts",
+                                   "Video games can show me how to support conservation efforts")
+selected_statements_studios <- c("When studios develop video games about ecological issues, they should provide information on the real-world severity of these issues",
+                                 "When studios develop video games about ecological issues, they should provide ways for players to support conservation efforts",
+                                 "Studios that develop video games about ecological issues have a responsibility to also support conservation efforts",
+                                 "Studios that develop video games about ecological issues currently do enough to support conservation efforts")
+
+
+openness_plot <- traits_long %>% filter(statement %in% selected_statements_openness) %>%
+  mutate(statement = factor(statement, levels = selected_statements_openness)) %>%
+ggplot(aes(y = 1, fill = response)) +
+  geom_bar(position = position_fill(reverse = TRUE),
+           width = 0.9, color = "black", linewidth = 0.3) +
+  facet_wrap(~statement, ncol = 1, strip.position = "top") + 
+  scale_fill_manual(values = likert_colours,
+                    labels = likert_labels,
+                    name = "Response") +
+  guides(fill = guide_legend(ncol = 5, byrow = FALSE,
+                             title = NULL)) +
+  geom_label(aes(label = after_stat(ifelse(
+          (count / tapply(count, interaction(y, PANEL), sum)[interaction(y, PANEL)]) < 0.05, "", 
+          scales::percent(count / tapply(count, interaction(y, PANEL), sum)[interaction(y, PANEL)], accuracy = 0.1))),
+          alpha = after_stat(ifelse((count / tapply(count, interaction(y, PANEL), sum)[interaction(y, PANEL)]) < 0.05, 0, 0.6)),
+          group = response),
+          stat = "count",
+          fill = "white", color = "grey15", 
+          linewidth = 0, label.padding = unit(0.05, "lines"), size = 5.5, fontface = "bold",
+          position = position_fill(vjust = 0.5, reverse = TRUE)) +
+  scale_alpha_identity() +
+  labs(y = "Openness to eco-content", x = NULL) +
+  scale_y_discrete(expand = expansion(add = 0.25)) +
+  scale_x_continuous(expand = expansion(0), 
+                     labels = scales::percent_format(),
+                     breaks = seq(0.1, 0.9, by = 0.1)) +
+  theme_classic() +
+  theme(
+    text = element_text(family = "serif"),
+    legend.position = "top",
+    legend.text = element_text(size = 17, family = "sans"),  
+    legend.key.spacing.x = unit(1, "lines"),
+    axis.line = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.ticks.y = element_line(color = "black", linewidth = 0.5),
+    axis.title.y = element_text(margin = margin(r=20), face = "bold", size = 28, vjust = 0.5),
+    axis.text.x = element_blank(),
+    axis.text.y = element_text(size = 15, family = "sans"),
+    panel.spacing = unit(1.25, "lines"),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+    strip.text = element_text(face = "bold", size = 20, color = "grey10"),
+    strip.background = element_rect(fill = "grey80", linewidth = 0.5, color = "black"),
+    strip.placement = "outside",
+    panel.grid.major.x = element_line(color = "grey90", linewidth = 0.5),
+    strip.switch.pad.grid = unit(0, "in"),
+    aspect.ratio = 0.045,
+    plot.margin = margin(t = 0, r = 20, b = 0, l = 20))
+
+ggsave("openness_plot.png",
+       width = 12,
+       height = 5.5,
+       units = "in",
+       dpi = 300)
+
+
+awareness_plot <- traits_long %>% filter(statement %in% selected_statements_awareness) %>%
+  mutate(statement = factor(statement, levels = selected_statements_awareness)) %>%
+ggplot(aes(y = 1, fill = response)) +
+  geom_bar(position = position_fill(reverse = TRUE),
+           width = 0.9, color = "black", linewidth = 0.3) +
+  facet_wrap(~statement, ncol = 1, strip.position = "top") + 
+  scale_fill_manual(values = likert_colours,
+                    labels = likert_labels,
+                    name = "Response") +
+  guides(fill = guide_legend(ncol = 5, byrow = FALSE,
+                             title = NULL)) +
+  geom_label(aes(label = after_stat(ifelse(
+          (count / tapply(count, interaction(y, PANEL), sum)[interaction(y, PANEL)]) < 0.05, "", 
+          scales::percent(count / tapply(count, interaction(y, PANEL), sum)[interaction(y, PANEL)], accuracy = 0.1))),
+          alpha = after_stat(ifelse((count / tapply(count, interaction(y, PANEL), sum)[interaction(y, PANEL)]) < 0.05, 0, 0.6)),
+          group = response),
+          stat = "count",
+          fill = "white", color = "grey15", 
+          linewidth = 0, label.padding = unit(0.05, "lines"), size = 5.5, fontface = "bold",
+          position = position_fill(vjust = 0.5, reverse = TRUE)) +
+  scale_alpha_identity() +
+  labs(y = "Raising awareness", x = NULL) +
+  scale_y_discrete(expand = expansion(add = 0.25)) +
+  scale_x_continuous(expand = expansion(0), 
+                     labels = scales::percent_format(),
+                     breaks = seq(0.1, 0.9, by = 0.1)) +
+  theme_classic() +
+  theme(
+    text = element_text(family = "serif"),
+    legend.position = "top",
+    legend.text = element_text(size = 17, family = "sans"),  
+    legend.key.spacing.x = unit(1, "lines"),
+    axis.line = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.ticks.y = element_line(color = "black", linewidth = 0.5),
+    axis.title.y = element_text(margin = margin(r=20), face = "bold", size = 28, vjust = 0.5),
+    axis.text.x = element_blank(),
+    axis.text.y = element_text(size = 15, family = "sans"),
+    panel.spacing = unit(1.25, "lines"),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+    strip.text = element_text(face = "bold", size = 20, color = "grey10"),
+    strip.background = element_rect(fill = "grey80", linewidth = 0.5, color = "black"),
+    strip.placement = "outside",
+    panel.grid.major.x = element_line(color = "grey90", linewidth = 0.5),
+    strip.switch.pad.grid = unit(0, "in"),
+    aspect.ratio = 0.045,
+    plot.margin = margin(t = 6, r = 20, b = 6, l = 20))
+
+ggsave("awareness_plot.png",
+       width = 12,
+       height = 5.5,
+       units = "in",
+       dpi = 300)
+
+
+studios_plot <- traits_long %>% filter(statement %in% selected_statements_studios) %>%
+  mutate(statement = factor(statement, levels = selected_statements_studios)) %>%
+ggplot(aes(y = 1, fill = response)) +
+  geom_bar(position = position_fill(reverse = TRUE),
+           width = 0.9, color = "black", linewidth = 0.3) +
+  facet_wrap(~statement, ncol = 1, strip.position = "top") + 
+  scale_fill_manual(values = likert_colours,
+                    labels = likert_labels,
+                    name = "Response") +
+  guides(fill = guide_legend(ncol = 5, byrow = FALSE,
+                             title = NULL)) +
+  geom_label(aes(label = after_stat(ifelse(
+          (count / tapply(count, interaction(y, PANEL), sum)[interaction(y, PANEL)]) < 0.05, "", 
+          scales::percent(count / tapply(count, interaction(y, PANEL), sum)[interaction(y, PANEL)], accuracy = 0.1))),
+          alpha = after_stat(ifelse((count / tapply(count, interaction(y, PANEL), sum)[interaction(y, PANEL)]) < 0.05, 0, 0.6)),
+          group = response),
+          stat = "count",
+          fill = "white", color = "grey15", 
+          linewidth = 0, label.padding = unit(0.05, "lines"), size = 5.5, fontface = "bold",
+          position = position_fill(vjust = 0.5, reverse = TRUE)) +
+  scale_alpha_identity() +
+  labs(y = "Studio responsibility", x = NULL) +
+  scale_y_discrete(expand = expansion(add = 0.25)) +
+  scale_x_continuous(expand = expansion(0), 
+                     labels = scales::percent_format(),
+                     breaks = seq(0.1, 0.9, by = 0.1)) +
+  theme_classic() +
+  theme(
+    text = element_text(family = "serif"),
+    legend.position = "top",
+    legend.text = element_text(size = 17, family = "sans"),  
+    legend.key.spacing.x = unit(1, "lines"),
+    axis.line = element_blank(),
+    axis.ticks.x = element_line(color = "black", linewidth = 0.5),
+    axis.ticks.y = element_line(color = "black", linewidth = 0.5),
+    axis.title.y = element_text(margin = margin(r=20), face = "bold", size = 28, vjust = 0.5),
+    axis.title.x = element_text(margin = margin(t=10), face = "bold", size = 15, hjust = 0.5),
+    axis.text.x = element_text(size = 15, family = "sans"),
+    axis.text.y = element_text(size = 15, family = "sans"),
+    panel.spacing = unit(1.25, "lines"),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+    strip.text = element_text(face = "bold", size = 20, color = "grey10"),
+    strip.background = element_rect(fill = "grey80", linewidth = 0.5, color = "black"),
+    strip.placement = "outside",
+    panel.grid.major.x = element_line(color = "grey90", linewidth = 0.5),
+    strip.switch.pad.grid = unit(0, "in"),
+    aspect.ratio = 0.045,
+    plot.margin = margin(t = 0, r = 20, b = 10, l = 20))
+
+ggsave("studios_plot.png",
+       width = 12,
+       height = 5.5,
+       units = "in",
+       dpi = 300)
+
+
+statements_combined_plot <- openness_plot / awareness_plot / studios_plot +
+  plot_layout(guides = "collect") & 
+  theme(legend.position = "top",
+        legend.margin = margin(t = 10, b = -10, unit = "pt"), 
+    legend.box.margin = margin(t = 10, b = -10, unit = "pt"))
+ggsave("statements_combined_plot.png",
+       width = 18,
+       height = 20,
+       units = "in",
+       dpi = 300)
+
+
+
+```
+
+
+``` {r nudges plot }
+
+#pivot dataset to long format
+traits_long <- traits_data %>%
+  pivot_longer(cols = c("purchase_ingame_goods", "live_service_events", "share_ingame_info", "attend_ingame_marches", "dress_avatar_profile", "donate_without_reward", "watch_livestreams", "sign_petitions", "earn_ingame_achievements", "pay_more", "organise_ingame_events", "create_share_content"), names_to = "nudge", values_to = "response") %>%
+  mutate(response = as.character(response)) %>%
+  mutate(nudge = recode_values(nudge,
+                                "purchase_ingame_goods" ~ "...purchase in-game goods, if the profit goes to conservation efforts",
+                                "live_service_events" ~ "...play temporary live service events, where the game’s studio supports conservation efforts when players meet in-game goals",
+                                "share_ingame_info" ~ "...share in-game information about conservation efforts to my social media",
+                                "attend_ingame_marches" ~ "...attend in-game marches in support of conservation efforts",
+                                "dress_avatar_profile" ~ "...dress my avatar/profile in a way that shows my support for conservation efforts",
+                                "donate_without_reward" ~ "...make donations to conservation efforts through video games, with nothing in return",
+                                "watch_livestreams" ~ "...watch livestreams of games, if they offer ways for the audience to support conservation efforts",
+                                "sign_petitions" ~ "...sign in-game petitions in support of conservation efforts",
+                                "earn_ingame_achievements" ~ "...earn in-game trophies/achievements that result in the game’s studio taking action to support conservation efforts",
+                                "pay_more" ~ "...pay a slightly higher price for video games, if the extra profit goes to conservation efforts",
+                                "organise_ingame_events" ~ "...organise in-game community events for players to show support for conservation efforts", 
+                                "create_share_content" ~ "...create and share content (e.g., mods, assets) that helps other players to show support for conservation efforts"))
+
+nudge_order <- c("...organise in-game community events for players to show support for conservation efforts",
+                     "...share in-game information about conservation efforts to my social media",
+                     "...create and share content (e.g., mods, assets) that helps other players to show support for conservation efforts",
+                     "...attend in-game marches in support of conservation efforts",
+                     "...make donations to conservation efforts through video games, with nothing in return",
+                     "...pay a slightly higher price for video games, if the extra profit goes to conservation efforts",
+                     "...purchase in-game goods, if the profit goes to conservation efforts",
+                     "...watch livestreams of games, if they offer ways for the audience to support conservation efforts",
+                     "...dress my avatar/profile in a way that shows my support for conservation efforts",
+                     "...play temporary live service events, where the game’s studio supports conservation efforts when players meet in-game goals",
+                     "...sign in-game petitions in support of conservation efforts",
+                     "...earn in-game trophies/achievements that result in the game’s studio taking action to support conservation efforts")
+                     
+
+traits_long <- traits_long %>%
+  mutate(nudge = factor(nudge, levels = nudge_order)) 
+  # Use rev() because ggplot plots the first factor level at the bottom
+
+
+
+nudge_plot <- ggplot(traits_long, aes(y = 1, fill = response)) +
+  geom_bar(position = position_fill(reverse = TRUE),
+           width = 0.9, color = "black", linewidth = 0.3) +
+  facet_wrap(~nudge, ncol = 1, strip.position = "top") + 
+  scale_fill_manual(values = likert_colours,
+                    labels = likert_labels,
+                    name = "Response") +
+  guides(fill = guide_legend(ncol = 5, byrow = FALSE,
+                             title = NULL)) +
+  geom_label(aes(label = after_stat(ifelse(
+          (count / tapply(count, interaction(y, PANEL), sum)[interaction(y, PANEL)]) < 0.05, "", 
+          scales::percent(count / tapply(count, interaction(y, PANEL), sum)[interaction(y, PANEL)], accuracy = 0.1))),
+          alpha = after_stat(ifelse((count / tapply(count, interaction(y, PANEL), sum)[interaction(y, PANEL)]) < 0.05, 0, 0.6)),
+          group = response),
+          stat = "count",
+          fill = "white", color = "grey15", 
+          linewidth = 0, label.padding = unit(0.05, "lines"), size = 5.5, fontface = "bold",
+          position = position_fill(vjust = 0.5, reverse = TRUE)) +
+  scale_alpha_identity() +
+  labs(y = "I would be willing to...", x = NULL) +
+  scale_y_discrete(expand = expansion(add = 0.25)) +
+  scale_x_continuous(expand = expansion(0), 
+                     labels = scales::percent_format(),
+                     breaks = seq(0.1, 0.9, by = 0.1)) +
+  theme_classic() +
+  theme(
+    text = element_text(family = "serif"),
+    legend.position = "top", 
+    legend.margin = margin(b = 20, unit = "pt"), 
+    legend.text = element_text(size = 17, family = "sans"),  
+    legend.key.spacing.x = unit(0.75, "lines"),
+    axis.line = element_blank(),
+    axis.ticks.x = element_line(color = "black", linewidth = 0.5),
+    axis.ticks.y = element_line(color = "black", linewidth = 0.5),
+    axis.title.y = element_text(margin = margin(r=20), face = "bold", size = 28, vjust = 0.5),
+    axis.title.x = element_text(margin = margin(t=10), face = "bold", size = 15, hjust = 0.5),
+    axis.text = element_text(size = 15, family = "sans"),
+    panel.spacing = unit(2, "lines"),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+    strip.text = element_text(face = "bold", size = 20, color = "grey10"),
+    strip.background = element_rect(fill = "grey80", linewidth = 0.5, color = "black"),
+    strip.placement = "outside",
+    panel.grid.major.x = element_line(color = "grey90", linewidth = 0.5),
+    strip.switch.pad.grid = unit(0, "in"),
+    aspect.ratio = 0.045,
+    plot.margin = margin(t = 18, r = 20, b = 25, l = 20))
+
+ggsave("nudge_plot.png",
+       width = 18,
+       height = 20,
+       units = "in",
+       dpi = 300)
+
+
+
+```
+
