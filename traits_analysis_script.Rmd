@@ -44,7 +44,7 @@ library("patchwork")
 ```{r read and reorder covariates}
 
 #read data
-traits_data <- read.csv("/data/traits_data.csv")
+traits_data <- read.csv("data/traits_data.csv")
 traits_data <- traits_data %>% filter(education != "None specified")
 
 
